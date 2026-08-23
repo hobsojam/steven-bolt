@@ -2,6 +2,7 @@ extends SceneTree
 
 const RunRules := preload("res://scripts/run_rules.gd")
 const ChaseCamera := preload("res://scripts/chase_camera.gd")
+const LevelOneDefinition := preload("res://scripts/level_one_definition.gd")
 
 var _failures: int = 0
 
@@ -27,6 +28,9 @@ func _initialize() -> void:
 	_test_apply_toll_consumes_threshold()
 	_test_current_speed_ramps_up_over_time()
 	_test_current_speed_caps_at_max()
+	_test_expand_pickup_trail_generates_correct_points()
+	_test_expand_pickup_trail_points_carry_lane_and_value()
+	_test_entries_are_sorted_by_distance()
 
 	if _failures == 0:
 		print("All tests passed")
@@ -175,6 +179,47 @@ func _test_current_speed_caps_at_max() -> void:
 		RunRules.MAX_RUN_SPEED,
 		"run speed never exceeds MAX_RUN_SPEED"
 	)
+
+
+func _test_expand_pickup_trail_generates_correct_points() -> void:
+	var trail := {
+		"lane": 2,
+		"start_distance": 10.0,
+		"end_distance": 20.0,
+		"spacing": 5.0,
+		"op": "+",
+		"value": 3,
+	}
+	var pickups: Array[Dictionary] = LevelOneDefinition.expand_pickup_trail(trail)
+	_assert_eq(pickups.size(), 3, "pickup trail generates one point per spacing interval")
+	_assert_eq(pickups[0]["distance"], 10.0, "first pickup sits at the trail's start distance")
+	_assert_eq(pickups[2]["distance"], 20.0, "last pickup sits at the trail's end distance")
+
+
+func _test_expand_pickup_trail_points_carry_lane_and_value() -> void:
+	var trail := {
+		"lane": 1,
+		"start_distance": 0.0,
+		"end_distance": 0.0,
+		"spacing": 1.0,
+		"op": "-",
+		"value": 7,
+	}
+	var pickups: Array[Dictionary] = LevelOneDefinition.expand_pickup_trail(trail)
+	_assert_eq(pickups.size(), 1, "a zero-length trail still yields its single start point")
+	_assert_eq(pickups[0]["kind"], "pickup", 'expanded points are kind "pickup"')
+	_assert_eq(pickups[0]["lane"], 1, "expanded points carry the trail's lane")
+	_assert_eq(pickups[0]["op"], "-", "expanded points carry the trail's op")
+	_assert_eq(pickups[0]["value"], 7, "expanded points carry the trail's value")
+
+
+func _test_entries_are_sorted_by_distance() -> void:
+	var all_entries: Array[Dictionary] = LevelOneDefinition.entries()
+	for i in range(1, all_entries.size()):
+		_assert_true(
+			all_entries[i - 1]["distance"] <= all_entries[i]["distance"],
+			"level entries stay sorted by distance after pickup-trail expansion"
+		)
 
 
 func _assert_true(condition: bool, message: String) -> void:

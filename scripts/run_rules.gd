@@ -54,9 +54,13 @@ static func crowd_layout(crowd_count: int) -> Array[Vector3]:
 	if rendered <= 0:
 		return positions
 	var spacing: float = CROWD_UNIT_SPACING * crowd_unit_scale(crowd_count)
-	var desired_width: float = sqrt(float(rendered)) * spacing
-	var width: float = minf(desired_width, CROWD_MAX_WIDTH)
-	var columns: int = mini(maxi(1, int(width / spacing)), rendered)
+	# Always fill as many columns as the clamped width allows before adding a
+	# depth row. Deriving columns from sqrt(rendered) * spacing (the previous
+	# approach) stops reaching CROWD_MAX_WIDTH once spacing shrinks with
+	# scale, so it under-uses the available width and pushes far more units
+	# into depth than necessary - enough, at the render cap, to stack rows
+	# behind where the chase camera sits.
+	var columns: int = mini(maxi(1, int(CROWD_MAX_WIDTH / spacing)), rendered)
 	for i in rendered:
 		var col: int = i % columns
 		var row: int = i / columns

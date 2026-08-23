@@ -1,6 +1,7 @@
 extends SceneTree
 
 const RunRules := preload("res://scripts/run_rules.gd")
+const ChaseCamera := preload("res://scripts/chase_camera.gd")
 
 var _failures: int = 0
 
@@ -15,6 +16,7 @@ func _initialize() -> void:
 	_test_crowd_layout_empty_for_zero()
 	_test_crowd_layout_caps_at_max_rendered()
 	_test_crowd_layout_stays_within_max_width()
+	_test_crowd_layout_stays_shallower_than_camera_offset()
 	_test_crowd_unit_scale_full_size_below_threshold()
 	_test_crowd_unit_scale_shrinks_toward_minimum()
 	_test_crowd_unit_scale_clamps_beyond_max()
@@ -83,6 +85,17 @@ func _test_crowd_layout_stays_within_max_width() -> void:
 	_assert_true(
 		max_abs_x <= RunRules.CROWD_MAX_WIDTH / 2.0 + 0.01,
 		"crowd width stays within the clamped track width"
+	)
+
+
+func _test_crowd_layout_stays_shallower_than_camera_offset() -> void:
+	var positions: Array[Vector3] = RunRules.crowd_layout(RunRules.MAX_RENDERED_UNITS)
+	var max_depth: float = 0.0
+	for pos in positions:
+		max_depth = maxf(max_depth, pos.z)
+	_assert_true(
+		max_depth < ChaseCamera.BACK_OFFSET,
+		"crowd depth at the render cap stays inside the chase camera's follow distance"
 	)
 
 

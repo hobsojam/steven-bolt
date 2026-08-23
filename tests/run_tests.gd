@@ -15,6 +15,10 @@ func _initialize() -> void:
 	_test_crowd_layout_empty_for_zero()
 	_test_crowd_layout_caps_at_max_rendered()
 	_test_crowd_layout_stays_within_max_width()
+	_test_crowd_unit_scale_full_size_below_threshold()
+	_test_crowd_unit_scale_shrinks_toward_minimum()
+	_test_crowd_unit_scale_clamps_beyond_max()
+	_test_crowd_unit_scale_is_monotonic()
 	_test_can_pass_toll_true_when_sufficient()
 	_test_can_pass_toll_false_when_insufficient()
 	_test_apply_toll_consumes_threshold()
@@ -79,6 +83,37 @@ func _test_crowd_layout_stays_within_max_width() -> void:
 	_assert_true(
 		max_abs_x <= RunRules.CROWD_MAX_WIDTH / 2.0 + 0.01,
 		"crowd width stays within the clamped track width"
+	)
+
+
+func _test_crowd_unit_scale_full_size_below_threshold() -> void:
+	_assert_eq(
+		RunRules.crowd_unit_scale(RunRules.CROWD_SHRINK_START_COUNT),
+		1.0,
+		"crowd stays full size at or below the shrink threshold"
+	)
+
+
+func _test_crowd_unit_scale_shrinks_toward_minimum() -> void:
+	_assert_eq(
+		RunRules.crowd_unit_scale(RunRules.MAX_RENDERED_UNITS),
+		RunRules.CROWD_MIN_SCALE,
+		"crowd units reach minimum scale at the render cap"
+	)
+
+
+func _test_crowd_unit_scale_clamps_beyond_max() -> void:
+	_assert_eq(
+		RunRules.crowd_unit_scale(10000),
+		RunRules.CROWD_MIN_SCALE,
+		"crowd unit scale never shrinks past the minimum"
+	)
+
+
+func _test_crowd_unit_scale_is_monotonic() -> void:
+	_assert_true(
+		RunRules.crowd_unit_scale(50) > RunRules.crowd_unit_scale(120),
+		"crowd units keep shrinking as count grows toward the render cap"
 	)
 
 

@@ -7,7 +7,7 @@
 [ext_resource type="Script" path="res://scripts/crowd_visual.gd" id="5_visual"]
 
 [sub_resource type="PlaneMesh" id="PlaneMesh_track"]
-size = Vector2(8, 400)
+size = Vector2(8, 180)
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_track"]
 albedo_color = Color(0.25, 0.25, 0.28, 1)
@@ -28,7 +28,7 @@ mesh = SubResource("CapsuleMesh_unit")
 script = ExtResource("1_run")
 
 [node name="Track" type="MeshInstance3D" parent="."]
-position = Vector3(0, 0, -200)
+position = Vector3(0, 0, -90)
 mesh = SubResource("PlaneMesh_track")
 surface_material_override/0 = SubResource("StandardMaterial3D_track")
 
@@ -62,7 +62,7 @@ offset_bottom = 56.0
 theme_override_font_sizes/font_size = 28
 text = "Crowd: 0"
 
-[node name="GameOverLabel" type="Label" parent="Hud"]
+[node name="EndRunLabel" type="Label" parent="Hud"]
 anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5

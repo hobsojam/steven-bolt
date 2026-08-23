@@ -36,6 +36,13 @@ func apply_gate(op: String, value: int) -> void:
 	crowd_count = RunRules.apply_gate(crowd_count, op, value)
 
 
+func apply_toll(threshold: int) -> bool:
+	if not RunRules.can_pass_toll(crowd_count, threshold):
+		return false
+	crowd_count = RunRules.apply_toll(crowd_count, threshold)
+	return true
+
+
 func _process(delta: float) -> void:
 	var target_x: float = RunRules.lane_x(current_lane)
 	position.x = move_toward(position.x, target_x, RunRules.LANE_SWITCH_SPEED * delta)

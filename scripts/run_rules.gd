@@ -23,6 +23,14 @@ static func apply_gate(count: int, op: String, value: int) -> int:
 	return count
 
 
+static func can_pass_toll(count: int, threshold: int) -> bool:
+	return count >= threshold
+
+
+static func apply_toll(count: int, threshold: int) -> int:
+	return count - threshold
+
+
 static func crowd_layout(crowd_count: int) -> Array[Vector3]:
 	var rendered: int = mini(crowd_count, MAX_RENDERED_UNITS)
 	var positions: Array[Vector3] = []

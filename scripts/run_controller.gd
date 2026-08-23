@@ -4,6 +4,8 @@ enum RunState { RUNNING, GAME_OVER }
 
 const RunRules := preload("res://scripts/run_rules.gd")
 const LevelOneDefinition := preload("res://scripts/level_one_definition.gd")
+const GateRowScript := preload("res://scripts/gate_row.gd")
+const TollWallScript := preload("res://scripts/toll_wall.gd")
 
 var distance_traveled: float = 0.0
 var _state: int = RunState.RUNNING
@@ -15,6 +17,7 @@ var _next_entry_index: int = 0
 
 func _ready() -> void:
 	_level_entries = LevelOneDefinition.entries()
+	_spawn_level_visuals()
 
 
 func _process(delta: float) -> void:
@@ -49,3 +52,19 @@ func _resolve_entry(entry: Dictionary) -> void:
 			_crowd.apply_gate(lane_data["op"], lane_data["value"])
 			if _crowd.crowd_count <= 0:
 				_state = RunState.GAME_OVER
+		"toll_wall":
+			if not _crowd.apply_toll(entry["threshold"]):
+				_state = RunState.GAME_OVER
+
+
+func _spawn_level_visuals() -> void:
+	for entry in _level_entries:
+		var visual
+		match entry["kind"]:
+			"gate_row":
+				visual = GateRowScript.new()
+			"toll_wall":
+				visual = TollWallScript.new()
+		if visual:
+			add_child(visual)
+			visual.setup(entry)

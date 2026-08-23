@@ -1,8 +1,9 @@
-[gd_scene load_steps=7 format=3 uid="uid://c0n0scaffold01"]
+[gd_scene load_steps=8 format=3 uid="uid://c0n0scaffold01"]
 
 [ext_resource type="Script" path="res://scripts/run_controller.gd" id="1_run"]
 [ext_resource type="Script" path="res://scripts/crowd_controller.gd" id="2_crowd"]
 [ext_resource type="Script" path="res://scripts/chase_camera.gd" id="3_cam"]
+[ext_resource type="Script" path="res://scripts/game_hud.gd" id="4_hud"]
 
 [sub_resource type="PlaneMesh" id="PlaneMesh_track"]
 size = Vector2(8, 400)
@@ -40,3 +41,30 @@ script = ExtResource("3_cam")
 
 [node name="SunLight" type="DirectionalLight3D" parent="."]
 rotation_degrees = Vector3(-45, 30, 0)
+
+[node name="Hud" type="CanvasLayer" parent="."]
+script = ExtResource("4_hud")
+
+[node name="CrowdCountLabel" type="Label" parent="Hud"]
+offset_left = 16.0
+offset_top = 16.0
+offset_right = 240.0
+offset_bottom = 56.0
+theme_override_font_sizes/font_size = 28
+text = "Crowd: 0"
+
+[node name="GameOverLabel" type="Label" parent="Hud"]
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -160.0
+offset_top = -50.0
+offset_right = 160.0
+offset_bottom = 50.0
+theme_override_font_sizes/font_size = 32
+horizontal_alignment = 1
+vertical_alignment = 1
+text = "GAME OVER
+Press Enter to Restart"
+visible = false

@@ -3,6 +3,7 @@ extends Node3D
 const RunRules := preload("res://scripts/run_rules.gd")
 
 var current_lane: int = RunRules.LANE_COUNT / 2
+var crowd_count: int = RunRules.START_CROWD_COUNT
 
 var _drag_active: bool = false
 var _drag_start_x: float = 0.0
@@ -29,6 +30,10 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func move_lane(direction: int) -> void:
 	current_lane = clampi(current_lane + direction, 0, RunRules.LANE_COUNT - 1)
+
+
+func apply_gate(op: String, value: int) -> void:
+	crowd_count = RunRules.apply_gate(crowd_count, op, value)
 
 
 func _process(delta: float) -> void:

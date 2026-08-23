@@ -3,7 +3,7 @@ extends RefCounted
 # Pure combat-resolution logic, deliberately independent of the scene tree
 # (see AGENTS.md's "keep pure math testable" note) so tests/run_tests.gd can
 # exercise hit/kill/breach resolution headlessly. scripts/enemy_wave_visual.gd
-# is the thin layer that turns this state into MeshInstance3D placeholders.
+# is the thin layer that turns this state into imported model instances.
 #
 # Bullets aren't locked onto the enemy they were fired at - resolve_hits()
 # always resolves against whichever enemy is currently nearest in a bullet's

@@ -18,7 +18,12 @@ func _process(_delta: float) -> void:
 
 func _rebuild(count: int) -> void:
 	var positions: Array[Vector3] = RunRules.crowd_layout(count)
+	var scale: float = RunRules.crowd_unit_scale(count)
+	var basis := Basis().scaled(Vector3.ONE * scale)
+	var y_offset: float = RunRules.CROWD_UNIT_HALF_HEIGHT * scale
 	var mesh: MultiMesh = _multimesh_instance.multimesh
 	mesh.instance_count = positions.size()
 	for i in positions.size():
-		mesh.set_instance_transform(i, Transform3D(Basis(), positions[i]))
+		var pos: Vector3 = positions[i]
+		pos.y = y_offset
+		mesh.set_instance_transform(i, Transform3D(basis, pos))

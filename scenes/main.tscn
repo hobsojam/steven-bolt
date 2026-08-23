@@ -39,7 +39,6 @@ script = ExtResource("2_crowd")
 script = ExtResource("5_visual")
 
 [node name="MultiMeshInstance3D" type="MultiMeshInstance3D" parent="CrowdController/CrowdVisual"]
-position = Vector3(0, 0.5, 0)
 multimesh = SubResource("MultiMesh_crowd")
 surface_material_override/0 = SubResource("StandardMaterial3D_crowd")
 

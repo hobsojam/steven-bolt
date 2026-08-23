@@ -10,7 +10,10 @@ const SWIPE_THRESHOLD_PX := 40.0
 const START_CROWD_COUNT := 20
 const MAX_RENDERED_UNITS := 150
 const CROWD_UNIT_SPACING := 0.6
+const CROWD_UNIT_HALF_HEIGHT := 0.5
 const CROWD_MAX_WIDTH := 6.0
+const CROWD_SHRINK_START_COUNT := 10
+const CROWD_MIN_SCALE := 0.5
 
 
 static func lane_x(lane_index: int) -> float:
@@ -37,18 +40,27 @@ static func apply_toll(count: int, threshold: int) -> int:
 	return count - threshold
 
 
+static func crowd_unit_scale(crowd_count: int) -> float:
+	if crowd_count <= CROWD_SHRINK_START_COUNT:
+		return 1.0
+	var shrink_range: int = MAX_RENDERED_UNITS - CROWD_SHRINK_START_COUNT
+	var t: float = float(crowd_count - CROWD_SHRINK_START_COUNT) / float(shrink_range)
+	return lerpf(1.0, CROWD_MIN_SCALE, clampf(t, 0.0, 1.0))
+
+
 static func crowd_layout(crowd_count: int) -> Array[Vector3]:
 	var rendered: int = mini(crowd_count, MAX_RENDERED_UNITS)
 	var positions: Array[Vector3] = []
 	if rendered <= 0:
 		return positions
-	var desired_width: float = sqrt(float(rendered)) * CROWD_UNIT_SPACING
+	var spacing: float = CROWD_UNIT_SPACING * crowd_unit_scale(crowd_count)
+	var desired_width: float = sqrt(float(rendered)) * spacing
 	var width: float = minf(desired_width, CROWD_MAX_WIDTH)
-	var columns: int = mini(maxi(1, int(width / CROWD_UNIT_SPACING)), rendered)
+	var columns: int = mini(maxi(1, int(width / spacing)), rendered)
 	for i in rendered:
 		var col: int = i % columns
 		var row: int = i / columns
-		var x: float = (col - (columns - 1) / 2.0) * CROWD_UNIT_SPACING
-		var z: float = row * CROWD_UNIT_SPACING
+		var x: float = (col - (columns - 1) / 2.0) * spacing
+		var z: float = row * spacing
 		positions.append(Vector3(x, 0.0, z))
 	return positions

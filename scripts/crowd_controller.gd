@@ -43,6 +43,10 @@ func apply_toll(threshold: int) -> bool:
 	return true
 
 
+func apply_breach(cost: int) -> void:
+	crowd_count = RunRules.apply_gate(crowd_count, "-", cost)
+
+
 func _process(delta: float) -> void:
 	var target_x: float = RunRules.lane_x(current_lane)
 	position.x = move_toward(position.x, target_x, RunRules.LANE_SWITCH_SPEED * delta)

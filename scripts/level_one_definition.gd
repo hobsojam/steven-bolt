@@ -33,6 +33,14 @@ static func entries() -> Array[Dictionary]:
 			],
 		},
 		{
+			"distance": 28.0,
+			"kind": "enemy_wave",
+			"enemies": [
+				{"lane": 2, "distance": 33.0, "hp": 2},
+				{"lane": 0, "distance": 35.0, "hp": 1},
+			],
+		},
+		{
 			"distance": 40.0,
 			"kind": "gate_row",
 			"lanes": [

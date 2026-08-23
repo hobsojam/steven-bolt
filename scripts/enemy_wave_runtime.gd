@@ -18,7 +18,7 @@ var bullets: Array[Dictionary] = []
 var _fire_cooldown: float = 0.0
 
 
-func _init(enemy_data: Array[Dictionary]) -> void:
+func _init(enemy_data: Array) -> void:
 	for data in enemy_data:
 		enemies.append(
 			{"lane": data["lane"], "distance": data["distance"], "hp": data["hp"], "alive": true}

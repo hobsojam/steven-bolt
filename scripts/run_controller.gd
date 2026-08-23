@@ -6,6 +6,7 @@ const RunRules := preload("res://scripts/run_rules.gd")
 const LevelOneDefinition := preload("res://scripts/level_one_definition.gd")
 const GateRowScript := preload("res://scripts/gate_row.gd")
 const TollWallScript := preload("res://scripts/toll_wall.gd")
+const PickupScript := preload("res://scripts/pickup.gd")
 const CombatRules := preload("res://scripts/combat_rules.gd")
 const EnemyWaveRuntimeScript := preload("res://scripts/enemy_wave_runtime.gd")
 const EnemyWaveVisualScript := preload("res://scripts/enemy_wave_visual.gd")
@@ -78,6 +79,9 @@ func _resolve_entry(entry: Dictionary) -> void:
 		"toll_wall":
 			if not _crowd.apply_toll(entry["threshold"]):
 				_state = RunState.GAME_OVER
+		"pickup":
+			if _crowd.current_lane == entry["lane"]:
+				_crowd.apply_gate(entry["op"], entry["value"])
 		"enemy_wave":
 			# "distance" here is the activation point, not an instant
 			# resolution like gate_row/toll_wall - the wave stays active
@@ -111,6 +115,8 @@ func _spawn_level_visuals() -> void:
 				visual = GateRowScript.new()
 			"toll_wall":
 				visual = TollWallScript.new()
+			"pickup":
+				visual = PickupScript.new()
 		if visual:
 			add_child(visual)
 			visual.setup(entry)

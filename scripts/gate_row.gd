@@ -15,8 +15,8 @@ func _build_label(lane_index: int, lane_data: Dictionary) -> Label3D:
 	var label := Label3D.new()
 	label.text = "%s%d" % [lane_data["op"], lane_data["value"]]
 	label.position = Vector3(RunRules.lane_x(lane_index), 0.0, 0.0)
-	label.font_size = 64
-	label.pixel_size = 0.02
+	label.font_size = 48
+	label.pixel_size = 0.01
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	label.modulate = Color.WHITE if lane_data["op"] == "+" else Color(1.0, 0.4, 0.4)
 	return label

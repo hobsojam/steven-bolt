@@ -26,8 +26,8 @@ func _build_label(threshold: int) -> Label3D:
 	var label := Label3D.new()
 	label.text = str(threshold)
 	label.position = Vector3(0.0, 1.5, 0.1)
-	label.font_size = 96
-	label.pixel_size = 0.02
+	label.font_size = 64
+	label.pixel_size = 0.01
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	label.modulate = Color.WHITE
 	return label

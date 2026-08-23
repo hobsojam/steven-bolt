@@ -5,10 +5,13 @@ const MODEL_DIR := "res://assets/models"
 
 func _initialize() -> void:
 	var errors: Array[String] = []
-	_export_model("crowd_unit", _build_crowd_unit(), errors)
-	_export_model("gate_positive", _build_gate(true), errors)
-	_export_model("gate_negative", _build_gate(false), errors)
-	_export_model("toll_wall", _build_toll_wall(), errors)
+	_export_model("crowd_unit", _build_crowd_unit(), 800, errors)
+	_export_model("gate_positive", _build_gate(true), 300, errors)
+	_export_model("gate_negative", _build_gate(false), 300, errors)
+	_export_model("toll_wall", _build_toll_wall(), 500, errors)
+	_export_model("enemy", _build_enemy(), 500, errors)
+	_export_model("bullet", _build_bullet(), 100, errors)
+	_export_model("pickup_marker", _build_pickup_marker(), 150, errors)
 	if errors.is_empty():
 		print("Generated all low-poly art assets")
 		quit(0)
@@ -18,7 +21,19 @@ func _initialize() -> void:
 		quit(1)
 
 
-func _export_model(file_name: String, model: MeshInstance3D, errors: Array[String]) -> void:
+func _export_model(
+	file_name: String,
+	model: MeshInstance3D,
+	triangle_budget: int,
+	errors: Array[String]
+) -> void:
+	var triangle_count := model.mesh.get_faces().size() / 3
+	if triangle_count > triangle_budget:
+		errors.append(
+			"%s uses %d triangles (budget: %d)" % [file_name, triangle_count, triangle_budget]
+		)
+		model.free()
+		return
 	var root := Node3D.new()
 	root.name = file_name.to_pascal_case()
 	root.add_child(model)
@@ -35,7 +50,7 @@ func _export_model(file_name: String, model: MeshInstance3D, errors: Array[Strin
 	if write_error != OK:
 		errors.append("Could not write %s: error %d" % [output_path, write_error])
 	else:
-		print("Generated %s" % output_path)
+		print("Generated %s (%d triangles)" % [output_path, triangle_count])
 	root.free()
 
 
@@ -184,6 +199,163 @@ func _build_toll_wall() -> MeshInstance3D:
 	return instance
 
 
+func _build_enemy() -> MeshInstance3D:
+	var mesh := ArrayMesh.new()
+	var red := _material("Enemy red", Color("c93643"), 0.84)
+	var red_dark := _material("Enemy shadow", Color("7f1d2d"), 0.90)
+	var red_light := _material("Enemy highlight", Color("ef6570"), 0.76)
+	var eyes := _emissive_material("Enemy eyes", Color("fff59d"), 1.5)
+
+	var body := SphereMesh.new()
+	body.radius = 0.23
+	body.height = 0.68
+	body.radial_segments = 8
+	body.rings = 5
+	_append(mesh, body, Transform3D(Basis.IDENTITY, Vector3(0.0, 0.59, 0.0)), red)
+
+	var head := SphereMesh.new()
+	head.radius = 0.25
+	head.height = 0.50
+	head.radial_segments = 8
+	head.rings = 4
+	_append(mesh, head, Transform3D(Basis.IDENTITY, Vector3(0.0, 1.05, 0.01)), red_light)
+
+	for side in [-1.0, 1.0]:
+		var leg := CylinderMesh.new()
+		leg.top_radius = 0.075
+		leg.bottom_radius = 0.09
+		leg.height = 0.32
+		leg.radial_segments = 6
+		leg.rings = 1
+		_append(
+			mesh,
+			leg,
+			Transform3D(Basis.IDENTITY, Vector3(0.11 * side, 0.16, 0.0)),
+			red_dark
+		)
+
+		var foot := BoxMesh.new()
+		foot.size = Vector3(0.16, 0.08, 0.20)
+		_append(
+			mesh,
+			foot,
+			Transform3D(Basis.IDENTITY, Vector3(0.11 * side, 0.04, 0.045)),
+			red_dark
+		)
+
+		var arm := CylinderMesh.new()
+		arm.top_radius = 0.055
+		arm.bottom_radius = 0.07
+		arm.height = 0.28
+		arm.radial_segments = 6
+		arm.rings = 1
+		var arm_basis := Basis.from_euler(
+			Vector3(deg_to_rad(8.0), 0.0, deg_to_rad(-18.0 * side))
+		)
+		_append(
+			mesh,
+			arm,
+			Transform3D(arm_basis, Vector3(0.225 * side, 0.67, 0.0)),
+			red
+		)
+
+		var horn := CylinderMesh.new()
+		horn.top_radius = 0.0
+		horn.bottom_radius = 0.075
+		horn.height = 0.28
+		horn.radial_segments = 5
+		horn.rings = 1
+		var horn_basis := Basis.from_euler(Vector3(0.0, 0.0, deg_to_rad(-12.0 * side)))
+		_append(
+			mesh,
+			horn,
+			Transform3D(horn_basis, Vector3(0.13 * side, 1.29, 0.0)),
+			red_dark
+		)
+
+		var eye := BoxMesh.new()
+		eye.size = Vector3(0.075, 0.045, 0.028)
+		_append(
+			mesh,
+			eye,
+			Transform3D(Basis.IDENTITY, Vector3(0.082 * side, 1.08, 0.247)),
+			eyes
+		)
+
+	var instance := MeshInstance3D.new()
+	instance.name = "Enemy"
+	instance.mesh = mesh
+	return instance
+
+
+func _build_bullet() -> MeshInstance3D:
+	var mesh := ArrayMesh.new()
+	var glow := _emissive_material("Friendly bolt", Color("fff59d"), 2.2)
+	var core := _emissive_material("Bolt core", Color("ffffff"), 2.8)
+	var forward_basis := Basis.from_euler(Vector3(deg_to_rad(90.0), 0.0, 0.0))
+
+	var body := CylinderMesh.new()
+	body.top_radius = 0.065
+	body.bottom_radius = 0.065
+	body.height = 0.18
+	body.radial_segments = 6
+	body.rings = 1
+	_append(mesh, body, Transform3D(forward_basis, Vector3.ZERO), glow)
+
+	var tip := CylinderMesh.new()
+	tip.top_radius = 0.0
+	tip.bottom_radius = 0.08
+	tip.height = 0.12
+	tip.radial_segments = 6
+	tip.rings = 1
+	_append(mesh, tip, Transform3D(forward_basis, Vector3(0.0, 0.0, -0.15)), core)
+
+	var instance := MeshInstance3D.new()
+	instance.name = "Bullet"
+	instance.mesh = mesh
+	return instance
+
+
+func _build_pickup_marker() -> MeshInstance3D:
+	var mesh := ArrayMesh.new()
+	var green := _material("Pickup green", Color("42d67b"), 0.76)
+	var green_dark := _material("Pickup shadow", Color("158f55"), 0.86)
+	var gold := _emissive_material("Pickup gold", Color("ffd34e"), 0.65)
+	var panel := _material("Pickup number panel", Color("0b2b3e"), 0.88)
+	var facing_basis := Basis.from_euler(Vector3(deg_to_rad(90.0), 0.0, 0.0))
+
+	var base := CylinderMesh.new()
+	base.top_radius = 0.22
+	base.bottom_radius = 0.25
+	base.height = 0.08
+	base.radial_segments = 8
+	base.rings = 1
+	_append(mesh, base, Transform3D(Basis.IDENTITY, Vector3(0.0, 0.04, 0.0)), green_dark)
+
+	var stem := CylinderMesh.new()
+	stem.top_radius = 0.045
+	stem.bottom_radius = 0.055
+	stem.height = 0.48
+	stem.radial_segments = 6
+	stem.rings = 1
+	_append(mesh, stem, Transform3D(Basis.IDENTITY, Vector3(0.0, 0.30, 0.0)), green)
+
+	_add_box(mesh, Vector3(0.66, 0.32, 0.08), Vector3(0.0, 0.52, 0.08), panel)
+
+	var coin := CylinderMesh.new()
+	coin.top_radius = 0.21
+	coin.bottom_radius = 0.21
+	coin.height = 0.08
+	coin.radial_segments = 8
+	coin.rings = 1
+	_append(mesh, coin, Transform3D(facing_basis, Vector3(0.0, 0.78, 0.0)), gold)
+
+	var instance := MeshInstance3D.new()
+	instance.name = "PickupMarker"
+	instance.mesh = mesh
+	return instance
+
+
 func _add_box(
 	target: ArrayMesh,
 	size: Vector3,
@@ -214,4 +386,17 @@ func _material(label: String, color: Color, roughness: float) -> StandardMateria
 	# are conventional sRGB hex colors.
 	material.albedo_color = color.srgb_to_linear()
 	material.roughness = roughness
+	return material
+
+
+func _emissive_material(
+	label: String,
+	color: Color,
+	energy_multiplier: float
+) -> StandardMaterial3D:
+	var material := _material(label, color, 0.45)
+	var linear_color := color.srgb_to_linear()
+	material.emission_enabled = true
+	material.emission = linear_color
+	material.emission_energy_multiplier = energy_multiplier
 	return material

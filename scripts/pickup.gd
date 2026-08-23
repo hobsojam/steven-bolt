@@ -1,16 +1,19 @@
 extends Node3D
 
 const RunRules := preload("res://scripts/run_rules.gd")
+const PickupMarkerModel := preload("res://assets/models/pickup_marker.glb")
 
 
 func setup(entry: Dictionary) -> void:
-	position = Vector3(RunRules.lane_x(entry["lane"]), 1.1, -entry["distance"])
+	position = Vector3(RunRules.lane_x(entry["lane"]), 0.0, -entry["distance"])
+	add_child(PickupMarkerModel.instantiate())
 	add_child(_build_label(entry["op"], entry["value"]))
 
 
 func _build_label(op: String, value: int) -> Label3D:
 	var label := Label3D.new()
 	label.text = "%s%d" % [op, value]
+	label.position = Vector3(0.0, 0.52, 0.15)
 	label.font_size = 40
 	label.pixel_size = 0.008
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED

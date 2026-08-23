@@ -82,13 +82,6 @@ func _resolve_entry(entry: Dictionary) -> void:
 		"pickup":
 			if _crowd.current_lane == entry["lane"]:
 				_crowd.apply_gate(entry["op"], entry["value"])
-		"enemy_wave":
-			# "distance" here is the activation point, not an instant
-			# resolution like gate_row/toll_wall - the wave stays active
-			# and is updated every frame via _update_combat() until cleared.
-			_active_wave = EnemyWaveRuntimeScript.new(entry["enemies"])
-			_active_wave_visual = EnemyWaveVisualScript.new(_active_wave)
-			add_child(_active_wave_visual)
 
 
 func _update_combat(delta: float) -> void:
@@ -117,6 +110,16 @@ func _spawn_level_visuals() -> void:
 				visual = TollWallScript.new()
 			"pickup":
 				visual = PickupScript.new()
+			"enemy_wave":
+				# Unlike gate_row/toll_wall/pickup (resolved once, instantly,
+				# when crossed), an enemy wave exists and is simulated from
+				# level start - same as gates being visible from a distance
+				# via the chase camera's lookahead, rather than popping in
+				# right before the crowd reaches it. _update_combat() runs
+				# every frame in _process() while _active_wave is set.
+				_active_wave = EnemyWaveRuntimeScript.new(entry["enemies"])
+				_active_wave_visual = EnemyWaveVisualScript.new(_active_wave)
+				add_child(_active_wave_visual)
 		if visual:
 			add_child(visual)
 			visual.setup(entry)

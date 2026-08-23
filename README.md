@@ -63,3 +63,8 @@ gdlint .                                                   # lint (pip install "
 GitHub Actions runs on every push and pull request: imports the project,
 lints GDScript, syntax-checks every script, runs the unit tests, and does a
 headless smoke load.
+
+## License
+
+Unless otherwise noted, the code and procedural art assets in this
+repository are licensed under the MIT License. See [LICENSE](LICENSE).

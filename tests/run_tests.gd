@@ -33,6 +33,7 @@ func _initialize() -> void:
 	_test_expand_pickup_trail_generates_correct_points()
 	_test_expand_pickup_trail_points_carry_lane_and_value()
 	_test_entries_are_sorted_by_distance()
+	_test_entries_contain_a_partial_enemy_wave()
 	_test_shot_damage_scales_with_crowd_count()
 	_test_nearest_enemy_index_in_lane_picks_closest()
 	_test_apply_hit_kills_at_zero_hp()
@@ -227,6 +228,24 @@ func _test_entries_are_sorted_by_distance() -> void:
 			all_entries[i - 1]["distance"] <= all_entries[i]["distance"],
 			"level entries stay sorted by distance after pickup-trail expansion"
 		)
+
+
+func _test_entries_contain_a_partial_enemy_wave() -> void:
+	var wave: Dictionary = {}
+	for entry in LevelOneDefinition.entries():
+		if entry["kind"] == "enemy_wave":
+			wave = entry
+			break
+	_assert_true(not wave.is_empty(), "the level has an enemy_wave entry")
+	_assert_true(wave["enemies"].size() > 0, "the enemy wave has at least one enemy")
+	var threatened_lanes: Array = []
+	for enemy in wave["enemies"]:
+		if not threatened_lanes.has(enemy["lane"]):
+			threatened_lanes.append(enemy["lane"])
+	_assert_true(
+		threatened_lanes.size() < RunRules.LANE_COUNT,
+		"the wave doesn't put an enemy in every lane"
+	)
 
 
 func _test_shot_damage_scales_with_crowd_count() -> void:

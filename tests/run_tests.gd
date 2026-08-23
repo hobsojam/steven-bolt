@@ -18,6 +18,8 @@ func _initialize() -> void:
 	_test_can_pass_toll_true_when_sufficient()
 	_test_can_pass_toll_false_when_insufficient()
 	_test_apply_toll_consumes_threshold()
+	_test_current_speed_ramps_up_over_time()
+	_test_current_speed_caps_at_max()
 
 	if _failures == 0:
 		print("All tests passed")
@@ -90,6 +92,21 @@ func _test_can_pass_toll_false_when_insufficient() -> void:
 
 func _test_apply_toll_consumes_threshold() -> void:
 	_assert_eq(RunRules.apply_toll(100, 60), 40, "toll wall consumes exactly the threshold amount")
+
+
+func _test_current_speed_ramps_up_over_time() -> void:
+	_assert_true(
+		RunRules.current_speed(10.0) > RunRules.current_speed(0.0),
+		"run speed increases as elapsed time increases"
+	)
+
+
+func _test_current_speed_caps_at_max() -> void:
+	_assert_eq(
+		RunRules.current_speed(10000.0),
+		RunRules.MAX_RUN_SPEED,
+		"run speed never exceeds MAX_RUN_SPEED"
+	)
 
 
 func _assert_true(condition: bool, message: String) -> void:

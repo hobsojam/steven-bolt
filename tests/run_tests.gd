@@ -19,9 +19,8 @@ func _initialize() -> void:
 	_test_crowd_layout_stays_shallower_than_camera_offset()
 	_test_crowd_layout_stays_within_max_depth()
 	_test_crowd_layout_stays_narrow_at_start_count()
-	_test_crowd_unit_scale_full_size_below_threshold()
-	_test_crowd_unit_scale_shrinks_toward_minimum()
-	_test_crowd_unit_scale_clamps_beyond_max()
+	_test_crowd_unit_scale_full_size_for_one()
+	_test_crowd_unit_scale_drops_25_percent_per_doubling()
 	_test_crowd_unit_scale_is_monotonic()
 	_test_can_pass_toll_true_when_sufficient()
 	_test_can_pass_toll_false_when_insufficient()
@@ -123,34 +122,25 @@ func _test_crowd_layout_stays_narrow_at_start_count() -> void:
 	)
 
 
-func _test_crowd_unit_scale_full_size_below_threshold() -> void:
-	_assert_eq(
-		RunRules.crowd_unit_scale(RunRules.CROWD_SHRINK_START_COUNT),
-		1.0,
-		"crowd stays full size at or below the shrink threshold"
+func _test_crowd_unit_scale_full_size_for_one() -> void:
+	_assert_eq(RunRules.crowd_unit_scale(1), 1.0, "a single crowd unit renders at full size")
+
+
+func _test_crowd_unit_scale_drops_25_percent_per_doubling() -> void:
+	_assert_true(
+		absf(RunRules.crowd_unit_scale(2) - 0.75) < 0.001,
+		"scale drops to 75% the first time the crowd doubles"
 	)
-
-
-func _test_crowd_unit_scale_shrinks_toward_minimum() -> void:
-	_assert_eq(
-		RunRules.crowd_unit_scale(RunRules.MAX_RENDERED_UNITS),
-		RunRules.CROWD_MIN_SCALE,
-		"crowd units reach minimum scale at the render cap"
-	)
-
-
-func _test_crowd_unit_scale_clamps_beyond_max() -> void:
-	_assert_eq(
-		RunRules.crowd_unit_scale(10000),
-		RunRules.CROWD_MIN_SCALE,
-		"crowd unit scale never shrinks past the minimum"
+	_assert_true(
+		absf(RunRules.crowd_unit_scale(4) - 0.5625) < 0.001,
+		"scale compounds to 56.25% by the second doubling"
 	)
 
 
 func _test_crowd_unit_scale_is_monotonic() -> void:
 	_assert_true(
 		RunRules.crowd_unit_scale(50) > RunRules.crowd_unit_scale(120),
-		"crowd units keep shrinking as count grows toward the render cap"
+		"crowd units keep shrinking as count grows"
 	)
 
 

@@ -13,8 +13,7 @@ const CROWD_UNIT_SPACING := 0.6
 const CROWD_UNIT_HALF_HEIGHT := 0.5
 const CROWD_MAX_WIDTH := 6.0
 const CROWD_MAX_DEPTH := 3.0
-const CROWD_SHRINK_START_COUNT := 10
-const CROWD_MIN_SCALE := 0.5
+const CROWD_SCALE_PER_DOUBLING := 0.75
 
 
 static func lane_x(lane_index: int) -> float:
@@ -42,11 +41,10 @@ static func apply_toll(count: int, threshold: int) -> int:
 
 
 static func crowd_unit_scale(crowd_count: int) -> float:
-	if crowd_count <= CROWD_SHRINK_START_COUNT:
+	if crowd_count <= 1:
 		return 1.0
-	var shrink_range: int = MAX_RENDERED_UNITS - CROWD_SHRINK_START_COUNT
-	var t: float = float(crowd_count - CROWD_SHRINK_START_COUNT) / float(shrink_range)
-	return lerpf(1.0, CROWD_MIN_SCALE, clampf(t, 0.0, 1.0))
+	var doublings: float = log(float(crowd_count)) / log(2.0)
+	return pow(CROWD_SCALE_PER_DOUBLING, doublings)
 
 
 static func crowd_layout(crowd_count: int) -> Array[Vector3]:

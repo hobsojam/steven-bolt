@@ -12,6 +12,7 @@ const MAX_RENDERED_UNITS := 150
 const CROWD_UNIT_SPACING := 0.6
 const CROWD_UNIT_HALF_HEIGHT := 0.5
 const CROWD_MAX_WIDTH := 6.0
+const CROWD_MAX_DEPTH := 3.0
 const CROWD_SHRINK_START_COUNT := 10
 const CROWD_MIN_SCALE := 0.5
 
@@ -54,13 +55,17 @@ static func crowd_layout(crowd_count: int) -> Array[Vector3]:
 	if rendered <= 0:
 		return positions
 	var spacing: float = CROWD_UNIT_SPACING * crowd_unit_scale(crowd_count)
-	# Always fill as many columns as the clamped width allows before adding a
-	# depth row. Deriving columns from sqrt(rendered) * spacing (the previous
-	# approach) stops reaching CROWD_MAX_WIDTH once spacing shrinks with
-	# scale, so it under-uses the available width and pushes far more units
-	# into depth than necessary - enough, at the render cap, to stack rows
-	# behind where the chase camera sits.
-	var columns: int = mini(maxi(1, int(CROWD_MAX_WIDTH / spacing)), rendered)
+	# Grow front-to-back first: start from a narrow, roughly-square footprint
+	# (columns ~= sqrt(rendered)) rather than immediately spreading across
+	# every lane. Only widen past that if the depth it would take to fit
+	# everyone exceeds CROWD_MAX_DEPTH (kept well under the chase camera's
+	# follow distance) - and even then, never past CROWD_MAX_WIDTH.
+	var columns: int = mini(maxi(1, int(ceil(sqrt(float(rendered))))), rendered)
+	var max_rows_for_depth: int = maxi(1, int(CROWD_MAX_DEPTH / spacing))
+	if ceili(float(rendered) / columns) > max_rows_for_depth:
+		columns = ceili(float(rendered) / max_rows_for_depth)
+	var max_columns_for_width: int = maxi(1, int(CROWD_MAX_WIDTH / spacing))
+	columns = clampi(columns, 1, mini(max_columns_for_width, rendered))
 	for i in rendered:
 		var col: int = i % columns
 		var row: int = i / columns

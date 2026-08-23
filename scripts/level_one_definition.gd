@@ -40,4 +40,9 @@ static func entries() -> Array[Dictionary]:
 				{"op": "-", "value": 5},
 			],
 		},
+		{
+			"distance": 90.0,
+			"kind": "toll_wall",
+			"threshold": 60,
+		},
 	]

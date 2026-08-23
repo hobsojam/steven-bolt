@@ -15,6 +15,9 @@ func _initialize() -> void:
 	_test_crowd_layout_empty_for_zero()
 	_test_crowd_layout_caps_at_max_rendered()
 	_test_crowd_layout_stays_within_max_width()
+	_test_can_pass_toll_true_when_sufficient()
+	_test_can_pass_toll_false_when_insufficient()
+	_test_apply_toll_consumes_threshold()
 
 	if _failures == 0:
 		print("All tests passed")
@@ -75,6 +78,18 @@ func _test_crowd_layout_stays_within_max_width() -> void:
 		max_abs_x <= RunRules.CROWD_MAX_WIDTH / 2.0 + 0.01,
 		"crowd width stays within the clamped track width"
 	)
+
+
+func _test_can_pass_toll_true_when_sufficient() -> void:
+	_assert_true(RunRules.can_pass_toll(100, 60), "sufficient crowd passes the toll check")
+
+
+func _test_can_pass_toll_false_when_insufficient() -> void:
+	_assert_true(not RunRules.can_pass_toll(40, 60), "insufficient crowd fails the toll check")
+
+
+func _test_apply_toll_consumes_threshold() -> void:
+	_assert_eq(RunRules.apply_toll(100, 60), 40, "toll wall consumes exactly the threshold amount")
 
 
 func _assert_true(condition: bool, message: String) -> void:

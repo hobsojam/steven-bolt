@@ -20,7 +20,7 @@ func _initialize() -> void:
 	_test_crowd_layout_stays_within_max_depth()
 	_test_crowd_layout_stays_narrow_at_start_count()
 	_test_crowd_unit_scale_full_size_for_one()
-	_test_crowd_unit_scale_drops_25_percent_per_doubling()
+	_test_crowd_unit_scale_drops_per_doubling()
 	_test_crowd_unit_scale_is_monotonic()
 	_test_can_pass_toll_true_when_sufficient()
 	_test_can_pass_toll_false_when_insufficient()
@@ -126,14 +126,20 @@ func _test_crowd_unit_scale_full_size_for_one() -> void:
 	_assert_eq(RunRules.crowd_unit_scale(1), 1.0, "a single crowd unit renders at full size")
 
 
-func _test_crowd_unit_scale_drops_25_percent_per_doubling() -> void:
+func _test_crowd_unit_scale_drops_per_doubling() -> void:
 	_assert_true(
-		absf(RunRules.crowd_unit_scale(2) - 0.75) < 0.001,
-		"scale drops to 75% the first time the crowd doubles"
+		absf(RunRules.crowd_unit_scale(2) - RunRules.CROWD_SCALE_PER_DOUBLING) < 0.001,
+		"scale drops by CROWD_SCALE_PER_DOUBLING the first time the crowd doubles"
 	)
 	_assert_true(
-		absf(RunRules.crowd_unit_scale(4) - 0.5625) < 0.001,
-		"scale compounds to 56.25% by the second doubling"
+		(
+			absf(
+				RunRules.crowd_unit_scale(4)
+				- RunRules.CROWD_SCALE_PER_DOUBLING * RunRules.CROWD_SCALE_PER_DOUBLING
+			)
+			< 0.001
+		),
+		"scale compounds by CROWD_SCALE_PER_DOUBLING again by the second doubling"
 	)
 
 

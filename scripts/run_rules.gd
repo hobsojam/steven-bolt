@@ -13,7 +13,7 @@ const CROWD_UNIT_SPACING := 0.6
 const CROWD_UNIT_HALF_HEIGHT := 0.5
 const CROWD_MAX_WIDTH := 6.0
 const CROWD_MAX_DEPTH := 3.0
-const CROWD_SCALE_PER_DOUBLING := 0.75
+const CROWD_SCALE_PER_DOUBLING := 0.85
 
 
 static func lane_x(lane_index: int) -> float:

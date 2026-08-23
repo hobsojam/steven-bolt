@@ -1,6 +1,6 @@
 extends Node3D
 
-enum RunState { RUNNING, GAME_OVER, FINISHED }
+enum RunState { START, RUNNING, GAME_OVER, FINISHED }
 
 const RunRules := preload("res://scripts/run_rules.gd")
 const LevelOneDefinition := preload("res://scripts/level_one_definition.gd")
@@ -9,7 +9,7 @@ const TollWallScript := preload("res://scripts/toll_wall.gd")
 
 var distance_traveled: float = 0.0
 var _elapsed_time: float = 0.0
-var _state: int = RunState.RUNNING
+var _state: int = RunState.START
 var _level_entries: Array[Dictionary] = []
 var _next_entry_index: int = 0
 
@@ -22,6 +22,10 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
+	if _state == RunState.START:
+		if Input.is_action_just_pressed("ui_accept"):
+			_state = RunState.RUNNING
+		return
 	if _state != RunState.RUNNING:
 		if Input.is_action_just_pressed("ui_accept"):
 			get_tree().reload_current_scene()
@@ -32,6 +36,10 @@ func _process(delta: float) -> void:
 	_resolve_pending_entries()
 	if _state == RunState.RUNNING and distance_traveled >= LevelOneDefinition.length():
 		_state = RunState.FINISHED
+
+
+func is_start() -> bool:
+	return _state == RunState.START
 
 
 func is_game_over() -> bool:

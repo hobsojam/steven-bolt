@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  workflow_dispatch:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  godot:
+    name: Godot checks
+    runs-on: ubuntu-latest
+
+    env:
+      GODOT_VERSION: "4.7.1"
+      GODOT_RELEASE: "stable"
+      GODOT_BINARY: Godot_v4.7.1-stable_linux.x86_64
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Install Godot
+        run: |
+          curl --fail --location --output godot.zip \
+            "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-${GODOT_RELEASE}/${GODOT_BINARY}.zip"
+          unzip -q godot.zip -d godot
+          chmod +x "godot/${GODOT_BINARY}"
+          echo "$PWD/godot" >> "$GITHUB_PATH"
+
+      - name: Import project resources
+        run: |
+          "${GODOT_BINARY}" --headless --path . --import
+
+      - name: Install GDScript lint tools
+        run: |
+          python -m pip install "gdtoolkit==4.*"
+
+      - name: Lint GDScript
+        run: |
+          gdlint .
+
+      - name: Check GDScript syntax
+        run: |
+          set -euo pipefail
+          for script in scripts/*.gd tests/*.gd; do
+            echo "::group::${script}"
+            "${GODOT_BINARY}" --headless --path . --check-only --script "${script}"
+            echo "::endgroup::"
+          done
+
+      - name: Run unit tests
+        run: |
+          "${GODOT_BINARY}" --headless --path . --script tests/run_tests.gd
+
+      - name: Smoke load project
+        run: |
+          "${GODOT_BINARY}" --headless --path . --quit-after 1

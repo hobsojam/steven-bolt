@@ -14,14 +14,18 @@
   — there's no per-unit texture variation without a shader change. Flag it
   if you want that; it's a small addition on my end, not something the art
   alone can do.
-- Everything currently on screen is Godot primitive geometry (capsules,
-  boxes, a plane) with flat `StandardMaterial3D` colors — no textures, no
-  models, no skybox, no custom UI theme. This spec replaces those with real
-  assets without requiring changes to gameplay code, lane math, or camera
-  framing — the dimensions below match what the code already assumes.
-- Full mechanics reference: `GAME_SPEC.md`. Current placeholder
-  implementation to replace: `scripts/crowd_visual.gd`, `scripts/gate_row.gd`,
-  `scripts/toll_wall.gd`, `scenes/main.tscn`.
+- **Update: items 1-6 below are done.** The first art pass (this spec,
+  originally) replaced the crowd/gates/toll-wall/road/sky/UI-theme
+  placeholders with real `.glb` models, a road texture, a procedural sky,
+  and a `Theme` resource — all live in the project now. Two mechanics
+  (auto-fire combat, the pickup-trail lanes) were built *after* that pass
+  and are still primitive placeholders: **items 7-9 are the new ask.**
+- Enemies, bullets, and pickup markers are each a plain individual
+  `MeshInstance3D` (`scripts/enemy_wave_visual.gd`, `scripts/pickup.gd`) —
+  **not** MultiMesh like the crowd. Per-instance material/texture variety is
+  totally fine for these if you want it; the MultiMesh constraint above only
+  applies to the crowd unit.
+- Full mechanics reference: `GAME_SPEC.md`.
 
 ## Art direction
 
@@ -38,24 +42,32 @@
   bad/danger, consistently across gates, the toll wall, and any UI danger
   states.
 
-### Current placeholder palette (match or intentionally improve on these)
+### Established palette (from the completed first pass — match these for 7-9)
 
 | Element | Color |
 |---|---|
-| Track | `#404046` (flat mid-gray) |
 | Crowd unit | `#F28C26` (orange) |
-| Gate: positive (`+N`) | white text, no background |
-| Gate: negative (`−N`) | `#FF6666` (soft red) text, no background |
-| Toll wall | `#B32626` @ 85% opacity (translucent red) |
-| Background | none — no skybox exists yet, just Godot's default clear color |
+| Gate: positive | `#42D67B` main / `#BFF5D1` number panel |
+| Gate: negative | `#EB4D5C` main / `#681D2B` number panel |
+| Toll wall / danger | `#C93643` ("Barrier red" — also used for the current enemy placeholder) |
+| Bullet placeholder | `#FFF59D` (pale glowing yellow) |
+
+All of the above are authored as conventional sRGB hex and converted with
+`Color.srgb_to_linear()` before assignment to `StandardMaterial3D.albedo_color`
+(it's a linear-space property) — see `tools/generate_art_assets.gd`'s
+`_material()` helper and `scripts/enemy_wave_visual.gd`. Do the same for any
+new hex colors you pick.
 
 ## Asset list
 
-### 1. Crowd unit character model
-- Bounding box target: **~0.5m diameter × 1.0m tall** (matches the current
-  `CapsuleMesh` placeholder's radius/height — `scripts/run_rules.gd`'s
-  `CROWD_UNIT_HALF_HEIGHT` and the crowd layout spacing assume this
-  footprint; keep close to it or flag if you want it changed).
+**Items 1-6 are done** (real assets already in the project) — kept below for
+reference/context, not as an active ask. **Items 7-9 are the new ask.**
+
+### 1. Crowd unit character model — done
+- Delivered as `assets/models/crowd_unit.glb`, ~1m tall, origin at ground
+  level (feet at local `y=0`) — that's why `scripts/crowd_visual.gd` no
+  longer needs a manual grounding offset; scaling happens around that same
+  origin so it stays grounded at every size.
 - A simple, appealing "blob person" — chunky rounded body, an oversized head
   is fine and reads better at small scale/distance. No fingers or facial
   detail needed. A single static pose is enough (arms-forward running pose
@@ -78,7 +90,7 @@
   Flag it and I'll wire up the shader side; a skeletal/bone animation export
   won't be usable as-is, don't spend budget on one without checking first.
 
-### 2. Gate sign (spans one lane, shows a math op)
+### 2. Gate sign (spans one lane, shows a math op) — done
 - Currently just floating `Label3D` text (`scripts/gate_row.gd`). Replace
   with an actual archway/banner structure the crowd visibly runs through,
   with the `+N`/`−N` value displayed on it.
@@ -92,7 +104,7 @@
 - Poly budget: **≤300 triangles per gate** — there are up to 5 visible in a
   row at once.
 
-### 3. Toll wall (obstacle barrier)
+### 3. Toll wall (obstacle barrier) — done
 - Currently a flat translucent red `BoxMesh` (`scripts/toll_wall.gd`).
   Replace with a barrier that reads as a genuine obstacle: **~8m wide × 3m
   tall × 0.2–0.5m thick** (matches `RunRules.CROWD_MAX_WIDTH + 2.0`).
@@ -103,7 +115,7 @@
   a clear panel/banner area on the wall for it.
 - Poly budget: **≤500 triangles.**
 
-### 4. Track / road surface
+### 4. Track / road surface — done
 - Currently a flat gray `PlaneMesh`, **8m wide × 180m long**
   (`scenes/main.tscn`), no texture. A tileable road texture (lane stripes,
   surface detail) would sell forward motion far better than a flat color.
@@ -115,7 +127,7 @@
   prop poly counts low (≤200 tris each) since several may be visible at
   once, receding toward the horizon.
 
-### 5. Sky / environment backdrop
+### 5. Sky / environment backdrop — done
 - Currently nothing — no skybox, no environment, just Godot's default clear
   color. The scene has no sense of place right now.
 - **Cheapest option, no art file needed:** give me two colors (sky/horizon)
@@ -125,7 +137,7 @@
   panorama, or a Godot `PanoramaSkyMaterial`) — keep it soft/out-of-focus so
   it doesn't compete with foreground readability.
 
-### 6. UI / HUD theme
+### 6. UI / HUD theme — done
 - Currently plain default Godot `Label`s, no theme
   (`scripts/game_hud.gd`, `scenes/main.tscn`). Could use a real look: a
   distinct font, a colored/rounded panel behind the crowd-count readout,
@@ -135,6 +147,49 @@
   authoring one directly, or just hand me a font file plus color/style
   notes and I'll build the `Theme` resource myself.
 
+### 7. Enemy model — new
+- Currently a plain red `CapsuleMesh` (`scripts/enemy_wave_visual.gd`).
+  Enemies are stationary level content the crowd approaches and shoots down
+  — same as gates, they're spawned and visible from a distance for the
+  whole run, not a surprise pop-in (see `run_controller.gd`'s
+  `_spawn_level_visuals()`).
+- Bounding box target: **~0.6m diameter × 1.4m tall** (matches the current
+  placeholder capsule's radius/height).
+- Style: same toy/chibi language as the crowd unit, but reads as hostile —
+  darker, spikier silhouette, danger-red palette (`#C93643`, see the
+  established palette above). No animation needed; enemies don't move, only
+  the crowd's bullets travel toward them.
+- Origin at ground level (feet at local `y=0`), same convention as the crowd
+  unit — I'll reposition `enemy_wave_visual.gd` to match once you hand this
+  over (it currently assumes a center-origin primitive).
+- **Poly budget: ≤500 triangles.** Only 1-2 enemies are ever visible per
+  wave right now, so there's headroom versus the crowd unit's 800 budget.
+
+### 8. Bullet model — new
+- Currently a small emissive yellow `SphereMesh` (`scripts/enemy_wave_visual.gd`).
+- A simple glowing projectile/energy bolt — the pale yellow placeholder
+  color (`#FFF59D`) reads fine as "friendly fire," but pick whatever sells
+  "the crowd is shooting" at a glance.
+- Bounding box: **~0.2–0.3m** — small and fast-moving, not a focal object.
+  Centered origin is fine (no ground-level constraint, it flies at chest
+  height).
+- **Poly budget: ≤100 triangles.** Keep it very cheap; several can exist on
+  screen at once.
+
+### 9. Pickup marker — new
+- Currently just floating `Label3D` text, no model at all
+  (`scripts/pickup.gd`). A small collectible marker (coin, flag, orb —
+  whatever reads as "run through this to collect it") for the pickup-trail
+  lanes, which repeat one marker every few meters along a single lane for a
+  stretch of track.
+- Bounding box: fits within **one lane's ~1.6m width**, modest height
+  (~0.5–1m) — much smaller than a full gate archway, since these repeat
+  frequently rather than appearing once.
+- The `+N`/`−N` value stays dynamic text I'll keep wiring in code — leave a
+  clear flat readable area near the marker for it.
+- **Poly budget: ≤150 triangles** — several can be visible in a row along a
+  trail at once.
+
 ## Delivery format
 
 - **Models: glTF 2.0, `.glb`** (single file, textures embedded) — Godot's
@@ -142,11 +197,11 @@
 - **Textures:** PNG, power-of-two dimensions, ≤512×512 unless a specific
   asset calls for more (the road texture may go to 1024×1024 if it needs
   more surface detail).
-- Name files descriptively (e.g. `crowd_unit.glb`, `gate_positive.glb`,
-  `gate_negative.glb`, `toll_wall.glb`, `road_texture.png`) — exact names
-  don't matter, just tell me what's what on handoff. Drop them anywhere in
-  the repo and I'll do all the Godot-side integration: import settings,
-  swapping out the primitive placeholders, wiring materials/instancing.
+- Name files descriptively (e.g. `enemy.glb`, `bullet.glb`,
+  `pickup_marker.glb`) — exact names don't matter, just tell me what's what
+  on handoff. Drop them anywhere in the repo and I'll do all the Godot-side
+  integration: import settings, swapping out the primitive placeholders,
+  wiring materials/instancing.
 
 ## Out of scope for this pass
 

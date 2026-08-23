@@ -1,34 +1,83 @@
-[gd_scene load_steps=10 format=3 uid="uid://c0n0scaffold01"]
+[gd_scene load_steps=16 format=3 uid="uid://c0n0scaffold01"]
 
 [ext_resource type="Script" path="res://scripts/run_controller.gd" id="1_run"]
 [ext_resource type="Script" path="res://scripts/crowd_controller.gd" id="2_crowd"]
 [ext_resource type="Script" path="res://scripts/chase_camera.gd" id="3_cam"]
 [ext_resource type="Script" path="res://scripts/game_hud.gd" id="4_hud"]
 [ext_resource type="Script" path="res://scripts/crowd_visual.gd" id="5_visual"]
+[ext_resource type="Texture2D" path="res://assets/textures/road_texture.png" id="6_road"]
+[ext_resource type="Theme" path="res://assets/themes/game_theme.tres" id="7_theme"]
 
 [sub_resource type="PlaneMesh" id="PlaneMesh_track"]
 size = Vector2(8, 180)
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_track"]
-albedo_color = Color(0.25, 0.25, 0.28, 1)
-
-[sub_resource type="CapsuleMesh" id="CapsuleMesh_unit"]
-radius = 0.25
-height = 1.0
-
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_crowd"]
-albedo_color = Color(0.95, 0.55, 0.15, 1)
+albedo_texture = ExtResource("6_road")
+roughness = 0.92
+uv1_scale = Vector3(1, 22.5, 1)
 
 [sub_resource type="MultiMesh" id="MultiMesh_crowd"]
 transform_format = 1
 instance_count = 0
-mesh = SubResource("CapsuleMesh_unit")
+
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_sunny"]
+sky_top_color = Color(0.105882, 0.537255, 0.898039, 1)
+sky_horizon_color = Color(0.721569, 0.92549, 1, 1)
+ground_bottom_color = Color(0.160784, 0.403922, 0.188235, 1)
+ground_horizon_color = Color(0.639216, 0.823529, 0.411765, 1)
+sun_angle_max = 22.0
+sun_curve = 0.08
+
+[sub_resource type="Sky" id="Sky_sunny"]
+sky_material = SubResource("ProceduralSkyMaterial_sunny")
+
+[sub_resource type="Environment" id="Environment_sunny"]
+background_mode = 2
+sky = SubResource("Sky_sunny")
+ambient_light_source = 3
+ambient_light_color = Color(0.815686, 0.913725, 1, 1)
+ambient_light_energy = 0.48
+reflected_light_source = 2
+tonemap_mode = 2
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_count"]
+bg_color = Color(0.0352941, 0.168627, 0.243137, 0.94)
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(0.301961, 0.898039, 0.65098, 1)
+corner_radius_top_left = 18
+corner_radius_top_right = 18
+corner_radius_bottom_right = 18
+corner_radius_bottom_left = 18
+shadow_color = Color(0.0196078, 0.0352941, 0.101961, 0.48)
+shadow_size = 7
+shadow_offset = Vector2(0, 4)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_overlay"]
+bg_color = Color(0.0352941, 0.0705882, 0.145098, 0.95)
+border_width_left = 4
+border_width_top = 4
+border_width_right = 4
+border_width_bottom = 4
+border_color = Color(1, 0.756863, 0.25098, 1)
+corner_radius_top_left = 28
+corner_radius_top_right = 28
+corner_radius_bottom_right = 28
+corner_radius_bottom_left = 28
+shadow_color = Color(0.0117647, 0.0196078, 0.054902, 0.64)
+shadow_size = 14
+shadow_offset = Vector2(0, 8)
 
 [node name="Main" type="Node3D"]
 script = ExtResource("1_run")
 
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_sunny")
+
 [node name="Track" type="MeshInstance3D" parent="."]
-position = Vector3(0, 0, -90)
+position = Vector3(0, 0, -87)
 mesh = SubResource("PlaneMesh_track")
 surface_material_override/0 = SubResource("StandardMaterial3D_track")
 
@@ -40,7 +89,6 @@ script = ExtResource("5_visual")
 
 [node name="MultiMeshInstance3D" type="MultiMeshInstance3D" parent="CrowdController/CrowdVisual"]
 multimesh = SubResource("MultiMesh_crowd")
-surface_material_override/0 = SubResource("StandardMaterial3D_crowd")
 
 [node name="ChaseCamera" type="Camera3D" parent="."]
 position = Vector3(0, 4, 6)
@@ -48,47 +96,119 @@ current = true
 script = ExtResource("3_cam")
 
 [node name="SunLight" type="DirectionalLight3D" parent="."]
-rotation_degrees = Vector3(-45, 30, 0)
+rotation_degrees = Vector3(-48, 28, 0)
+light_color = Color(1, 0.972549, 0.917647, 1)
+light_energy = 0.86
+shadow_enabled = true
 
 [node name="Hud" type="CanvasLayer" parent="."]
+theme = ExtResource("7_theme")
 script = ExtResource("4_hud")
 
-[node name="CrowdCountLabel" type="Label" parent="Hud"]
+[node name="ScreenTint" type="ColorRect" parent="Hud"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0.0156863, 0.027451, 0.0745098, 0.28)
+
+[node name="CrowdCountPanel" type="PanelContainer" parent="Hud"]
 offset_left = 16.0
 offset_top = 16.0
-offset_right = 240.0
-offset_bottom = 56.0
-theme_override_font_sizes/font_size = 28
-text = "Crowd: 0"
-
-[node name="EndRunLabel" type="Label" parent="Hud"]
-anchor_left = 0.5
-anchor_top = 0.5
-anchor_right = 0.5
-anchor_bottom = 0.5
-offset_left = -160.0
-offset_top = -50.0
-offset_right = 160.0
-offset_bottom = 50.0
-theme_override_font_sizes/font_size = 32
-horizontal_alignment = 1
-vertical_alignment = 1
-text = "GAME OVER
-Press Enter to Restart"
-visible = false
-
-[node name="StartLabel" type="Label" parent="Hud"]
-anchor_left = 0.5
-anchor_top = 0.5
-anchor_right = 0.5
-anchor_bottom = 0.5
-offset_left = -180.0
-offset_top = -70.0
-offset_right = 180.0
+offset_right = 222.0
 offset_bottom = 70.0
+theme_override_styles/panel = SubResource("StyleBoxFlat_count")
+
+[node name="Margin" type="MarginContainer" parent="Hud/CrowdCountPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 18
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 18
+theme_override_constants/margin_bottom = 8
+
+[node name="CrowdCountLabel" type="Label" parent="Hud/CrowdCountPanel/Margin"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.956863, 0.721569, 1)
+theme_override_font_sizes/font_size = 25
+text = "CROWD  20"
+vertical_alignment = 1
+
+[node name="StartPanel" type="PanelContainer" parent="Hud"]
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -210.0
+offset_top = -124.0
+offset_right = 210.0
+offset_bottom = 124.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_overlay")
+
+[node name="Margin" type="MarginContainer" parent="Hud/StartPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 24
+theme_override_constants/margin_top = 22
+theme_override_constants/margin_right = 24
+theme_override_constants/margin_bottom = 22
+
+[node name="Content" type="VBoxContainer" parent="Hud/StartPanel/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 10
+alignment = 1
+
+[node name="TitleLabel" type="Label" parent="Hud/StartPanel/Margin/Content"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.756863, 0.25098, 1)
+theme_override_constants/outline_size = 6
+theme_override_font_sizes/font_size = 38
+text = "STEVEN BOLT"
+horizontal_alignment = 1
+
+[node name="TaglineLabel" type="Label" parent="Hud/StartPanel/Margin/Content"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.301961, 0.898039, 0.65098, 1)
+theme_override_font_sizes/font_size = 18
+text = "BUILD THE BIGGEST CREW"
+horizontal_alignment = 1
+
+[node name="InstructionLabel" type="Label" parent="Hud/StartPanel/Margin/Content"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 17
+text = "Steer with A / D, arrow keys, or drag\n\nPress Enter to Start"
+horizontal_alignment = 1
+
+[node name="EndRunPanel" type="PanelContainer" parent="Hud"]
+visible = false
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -205.0
+offset_top = -118.0
+offset_right = 205.0
+offset_bottom = 118.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_overlay")
+
+[node name="Margin" type="MarginContainer" parent="Hud/EndRunPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 24
+theme_override_constants/margin_top = 22
+theme_override_constants/margin_right = 24
+theme_override_constants/margin_bottom = 22
+
+[node name="EndRunLabel" type="Label" parent="Hud/EndRunPanel/Margin"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.756863, 0.25098, 1)
+theme_override_constants/outline_size = 6
 theme_override_font_sizes/font_size = 30
+text = "GAME OVER\n\nPress Enter to Restart"
 horizontal_alignment = 1
 vertical_alignment = 1
-text = "STEVEN BOLT
-Steer with A/D, arrow keys, or drag
-Press Enter to Start"

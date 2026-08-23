@@ -3,6 +3,12 @@ extends RefCounted
 # Hand-authored MVP level. Pacing (start count 20, RunRules.START_CROWD_COUNT):
 #   Row 1 @20     - introduces the mechanic; the "obvious" center lane hides
 #                   a small penalty, teaching players to read every lane.
+#   Enemies @26-36 - two enemies span lanes 1-2. Breach cost applies per
+#                   un-killed enemy regardless of your own lane, so sitting
+#                   in an empty lane (0, 3, 4) doesn't dodge anything - it
+#                   guarantees paying for both. Killing the enemy in your
+#                   current lane is free; steering from lane 1 to lane 2
+#                   during the encounter can clear both.
 #   Row 2 @40     - a big win sits directly beside a heavy loss, testing
 #                   precision steering rather than just sign-reading.
 #   Trail @44-58  - lane 3 has a run of small +4 pickups; committing to that
@@ -54,11 +60,11 @@ static func entries() -> Array[Dictionary]:
 			],
 		},
 		{
-			"distance": 28.0,
+			"distance": 26.0,
 			"kind": "enemy_wave",
 			"enemies": [
-				{"lane": 2, "distance": 33.0, "hp": 2},
-				{"lane": 0, "distance": 35.0, "hp": 1},
+				{"lane": 1, "distance": 32.0, "hp": 2},
+				{"lane": 2, "distance": 36.0, "hp": 2},
 			],
 		},
 		{

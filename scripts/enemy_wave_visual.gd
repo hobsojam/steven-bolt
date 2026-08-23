@@ -30,13 +30,17 @@ func _process(_delta: float) -> void:
 
 func _spawn_enemy_visual(enemy: Dictionary) -> MeshInstance3D:
 	var mesh_instance := MeshInstance3D.new()
-	var box := BoxMesh.new()
-	box.size = Vector3(0.7, 1.2, 0.5)
-	mesh_instance.mesh = box
+	var capsule := CapsuleMesh.new()
+	capsule.radius = 0.3
+	capsule.height = 1.4
+	mesh_instance.mesh = capsule
 	var material := StandardMaterial3D.new()
-	material.albedo_color = Color("8b2fc9")
+	# StandardMaterial3D albedo is linear-space; the authored value is a
+	# conventional sRGB hex, matching the "Barrier red" danger color used
+	# for the toll wall/negative gates (see tools/generate_art_assets.gd).
+	material.albedo_color = Color("c93643").srgb_to_linear()
 	mesh_instance.material_override = material
-	mesh_instance.position = Vector3(RunRules.lane_x(enemy["lane"]), 0.6, -enemy["distance"])
+	mesh_instance.position = Vector3(RunRules.lane_x(enemy["lane"]), 0.7, -enemy["distance"])
 	add_child(mesh_instance)
 	return mesh_instance
 
@@ -48,9 +52,10 @@ func _spawn_bullet_visual(bullet: Dictionary) -> MeshInstance3D:
 	sphere.height = 0.24
 	mesh_instance.mesh = sphere
 	var material := StandardMaterial3D.new()
-	material.albedo_color = Color("fff59d")
+	var bullet_color := Color("fff59d").srgb_to_linear()
+	material.albedo_color = bullet_color
 	material.emission_enabled = true
-	material.emission = Color("fff59d")
+	material.emission = bullet_color
 	mesh_instance.material_override = material
 	mesh_instance.position = Vector3(RunRules.lane_x(bullet["lane"]), 1.0, -bullet["distance"])
 	return mesh_instance

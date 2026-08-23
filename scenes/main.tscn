@@ -1,9 +1,10 @@
-[gd_scene load_steps=8 format=3 uid="uid://c0n0scaffold01"]
+[gd_scene load_steps=10 format=3 uid="uid://c0n0scaffold01"]
 
 [ext_resource type="Script" path="res://scripts/run_controller.gd" id="1_run"]
 [ext_resource type="Script" path="res://scripts/crowd_controller.gd" id="2_crowd"]
 [ext_resource type="Script" path="res://scripts/chase_camera.gd" id="3_cam"]
 [ext_resource type="Script" path="res://scripts/game_hud.gd" id="4_hud"]
+[ext_resource type="Script" path="res://scripts/crowd_visual.gd" id="5_visual"]
 
 [sub_resource type="PlaneMesh" id="PlaneMesh_track"]
 size = Vector2(8, 400)
@@ -11,12 +12,17 @@ size = Vector2(8, 400)
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_track"]
 albedo_color = Color(0.25, 0.25, 0.28, 1)
 
-[sub_resource type="CapsuleMesh" id="CapsuleMesh_crowd"]
-radius = 0.5
-height = 2.0
+[sub_resource type="CapsuleMesh" id="CapsuleMesh_unit"]
+radius = 0.25
+height = 1.0
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_crowd"]
 albedo_color = Color(0.95, 0.55, 0.15, 1)
+
+[sub_resource type="MultiMesh" id="MultiMesh_crowd"]
+transform_format = 1
+instance_count = 0
+mesh = SubResource("CapsuleMesh_unit")
 
 [node name="Main" type="Node3D"]
 script = ExtResource("1_run")
@@ -29,9 +35,12 @@ surface_material_override/0 = SubResource("StandardMaterial3D_track")
 [node name="CrowdController" type="Node3D" parent="."]
 script = ExtResource("2_crowd")
 
-[node name="CrowdMesh" type="MeshInstance3D" parent="CrowdController"]
-position = Vector3(0, 1, 0)
-mesh = SubResource("CapsuleMesh_crowd")
+[node name="CrowdVisual" type="Node3D" parent="CrowdController"]
+script = ExtResource("5_visual")
+
+[node name="MultiMeshInstance3D" type="MultiMeshInstance3D" parent="CrowdController/CrowdVisual"]
+position = Vector3(0, 0.5, 0)
+multimesh = SubResource("MultiMesh_crowd")
 surface_material_override/0 = SubResource("StandardMaterial3D_crowd")
 
 [node name="ChaseCamera" type="Camera3D" parent="."]

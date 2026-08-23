@@ -12,6 +12,9 @@ func _initialize() -> void:
 	_test_apply_gate_exact_zero()
 	_test_apply_gate_stacking()
 	_test_lane_x_symmetry()
+	_test_crowd_layout_empty_for_zero()
+	_test_crowd_layout_caps_at_max_rendered()
+	_test_crowd_layout_stays_within_max_width()
 
 	if _failures == 0:
 		print("All tests passed")
@@ -49,6 +52,37 @@ func _test_lane_x_symmetry() -> void:
 	var leftmost: float = RunRules.lane_x(0)
 	var rightmost: float = RunRules.lane_x(RunRules.LANE_COUNT - 1)
 	_assert_eq(leftmost, -rightmost, "lane positions are symmetric around the track centerline")
+
+
+func _test_crowd_layout_empty_for_zero() -> void:
+	_assert_eq(RunRules.crowd_layout(0).size(), 0, "zero crowd renders no instances")
+
+
+func _test_crowd_layout_caps_at_max_rendered() -> void:
+	_assert_eq(
+		RunRules.crowd_layout(500).size(),
+		RunRules.MAX_RENDERED_UNITS,
+		"instance count caps at MAX_RENDERED_UNITS"
+	)
+
+
+func _test_crowd_layout_stays_within_max_width() -> void:
+	var positions: Array[Vector3] = RunRules.crowd_layout(RunRules.MAX_RENDERED_UNITS)
+	var max_abs_x: float = 0.0
+	for pos in positions:
+		max_abs_x = maxf(max_abs_x, absf(pos.x))
+	_assert_true(
+		max_abs_x <= RunRules.CROWD_MAX_WIDTH / 2.0 + 0.01,
+		"crowd width stays within the clamped track width"
+	)
+
+
+func _assert_true(condition: bool, message: String) -> void:
+	if not condition:
+		_failures += 1
+		push_error("FAIL: %s" % message)
+	else:
+		print("PASS: %s" % message)
 
 
 func _assert_eq(actual, expected, message: String) -> void:

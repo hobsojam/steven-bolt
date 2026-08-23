@@ -16,6 +16,13 @@ assets are shared between them).
 No monetization of any kind is planned or wanted for this project. Do not
 add ad, in-app-purchase, or currency hooks, even as inert scaffolding.
 
+## Read before working on art
+
+**`ART_SPEC.md`** — the target look, asset list, poly/texture budgets, and
+delivery format for replacing the current placeholder geometry (plain
+capsules/boxes/a flat-colored plane) with real assets. Read this before
+producing or wiring in any model, texture, or UI theme asset.
+
 ## Setup
 
 Install Godot 4.7 (stable), GL Compatibility renderer. Open `project.godot`

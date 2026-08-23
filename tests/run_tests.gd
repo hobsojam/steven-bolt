@@ -3,6 +3,8 @@ extends SceneTree
 const RunRules := preload("res://scripts/run_rules.gd")
 const ChaseCamera := preload("res://scripts/chase_camera.gd")
 const LevelOneDefinition := preload("res://scripts/level_one_definition.gd")
+const CombatRules := preload("res://scripts/combat_rules.gd")
+const EnemyWaveRuntime := preload("res://scripts/enemy_wave_runtime.gd")
 
 var _failures: int = 0
 
@@ -31,6 +33,11 @@ func _initialize() -> void:
 	_test_expand_pickup_trail_generates_correct_points()
 	_test_expand_pickup_trail_points_carry_lane_and_value()
 	_test_entries_are_sorted_by_distance()
+	_test_shot_damage_scales_with_crowd_count()
+	_test_nearest_enemy_index_in_lane_picks_closest()
+	_test_apply_hit_kills_at_zero_hp()
+	_test_try_fire_and_resolve_hits_kills_enemy()
+	_test_resolve_breaches_costs_only_alive_crossed_enemies()
 
 	if _failures == 0:
 		print("All tests passed")
@@ -220,6 +227,61 @@ func _test_entries_are_sorted_by_distance() -> void:
 			all_entries[i - 1]["distance"] <= all_entries[i]["distance"],
 			"level entries stay sorted by distance after pickup-trail expansion"
 		)
+
+
+func _test_shot_damage_scales_with_crowd_count() -> void:
+	_assert_eq(CombatRules.shot_damage(0), 1, "shot damage has a floor of 1 with no crowd")
+	_assert_true(
+		CombatRules.shot_damage(200) > CombatRules.shot_damage(20),
+		"shot damage increases as crowd count grows"
+	)
+
+
+func _test_nearest_enemy_index_in_lane_picks_closest() -> void:
+	var runtime := EnemyWaveRuntime.new(
+		[
+			{"lane": 0, "distance": 30.0, "hp": 1},
+			{"lane": 0, "distance": 10.0, "hp": 1},
+			{"lane": 1, "distance": 5.0, "hp": 1},
+		]
+	)
+	_assert_eq(
+		runtime.nearest_enemy_index_in_lane(0), 1, "picks the closer of two enemies in the lane"
+	)
+	_assert_eq(runtime.nearest_enemy_index_in_lane(2), -1, "returns -1 when a lane has no enemy")
+
+
+func _test_apply_hit_kills_at_zero_hp() -> void:
+	var runtime := EnemyWaveRuntime.new([{"lane": 0, "distance": 10.0, "hp": 2}])
+	_assert_true(not runtime.apply_hit(0, 1), "a hit that leaves hp above zero does not kill")
+	_assert_true(runtime.apply_hit(0, 1), "a hit that drops hp to zero kills")
+
+
+func _test_try_fire_and_resolve_hits_kills_enemy() -> void:
+	var runtime := EnemyWaveRuntime.new([{"lane": 0, "distance": 10.0, "hp": 1}])
+	runtime.try_fire(0, 0.0, 1, 1.0)
+	_assert_eq(runtime.bullets.size(), 1, "a target in range fires a bullet")
+	runtime.advance_bullets(1.0)
+	var killed: Array[int] = runtime.resolve_hits()
+	_assert_eq(killed, [0], "a bullet that reaches the enemy's distance kills it")
+	_assert_true(runtime.is_cleared(), "the wave is cleared once its only enemy is killed")
+
+
+func _test_resolve_breaches_costs_only_alive_crossed_enemies() -> void:
+	var runtime := EnemyWaveRuntime.new(
+		[
+			{"lane": 0, "distance": 5.0, "hp": 1},
+			{"lane": 1, "distance": 20.0, "hp": 1},
+		]
+	)
+	runtime.apply_hit(0, 1)
+	runtime.enemies.append({"lane": 2, "distance": 3.0, "hp": 1, "alive": true})
+	var cost: int = runtime.resolve_breaches(10.0)
+	_assert_eq(
+		cost,
+		CombatRules.ENEMY_BREACH_COST,
+		"breach cost only counts the alive enemy whose distance was crossed"
+	)
 
 
 func _assert_true(condition: bool, message: String) -> void:

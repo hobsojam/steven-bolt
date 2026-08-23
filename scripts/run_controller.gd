@@ -7,12 +7,17 @@ const LevelOneDefinition := preload("res://scripts/level_one_definition.gd")
 const GateRowScript := preload("res://scripts/gate_row.gd")
 const TollWallScript := preload("res://scripts/toll_wall.gd")
 const PickupScript := preload("res://scripts/pickup.gd")
+const CombatRules := preload("res://scripts/combat_rules.gd")
+const EnemyWaveRuntimeScript := preload("res://scripts/enemy_wave_runtime.gd")
+const EnemyWaveVisualScript := preload("res://scripts/enemy_wave_visual.gd")
 
 var distance_traveled: float = 0.0
 var _elapsed_time: float = 0.0
 var _state: int = RunState.START
 var _level_entries: Array[Dictionary] = []
 var _next_entry_index: int = 0
+var _active_wave = null
+var _active_wave_visual: Node3D = null
 
 @onready var _crowd = $CrowdController
 
@@ -35,6 +40,8 @@ func _process(delta: float) -> void:
 	distance_traveled += RunRules.current_speed(_elapsed_time) * delta
 	_crowd.position.z = -distance_traveled
 	_resolve_pending_entries()
+	if _active_wave:
+		_update_combat(delta)
 	if _state == RunState.RUNNING and distance_traveled >= LevelOneDefinition.length():
 		_state = RunState.FINISHED
 
@@ -75,6 +82,29 @@ func _resolve_entry(entry: Dictionary) -> void:
 		"pickup":
 			if _crowd.current_lane == entry["lane"]:
 				_crowd.apply_gate(entry["op"], entry["value"])
+		"enemy_wave":
+			# "distance" here is the activation point, not an instant
+			# resolution like gate_row/toll_wall - the wave stays active
+			# and is updated every frame via _update_combat() until cleared.
+			_active_wave = EnemyWaveRuntimeScript.new(entry["enemies"])
+			_active_wave_visual = EnemyWaveVisualScript.new(_active_wave)
+			add_child(_active_wave_visual)
+
+
+func _update_combat(delta: float) -> void:
+	var damage: int = CombatRules.shot_damage(_crowd.crowd_count)
+	_active_wave.try_fire(_crowd.current_lane, distance_traveled, damage, delta)
+	_active_wave.advance_bullets(delta)
+	_active_wave.resolve_hits()
+	var breach_cost: int = _active_wave.resolve_breaches(distance_traveled)
+	if breach_cost > 0:
+		_crowd.apply_breach(breach_cost)
+		if _crowd.crowd_count <= 0:
+			_state = RunState.GAME_OVER
+	if _active_wave.is_cleared():
+		_active_wave_visual.queue_free()
+		_active_wave = null
+		_active_wave_visual = null
 
 
 func _spawn_level_visuals() -> void:

@@ -3,12 +3,14 @@ extends RefCounted
 # Hand-authored MVP level. Pacing (start count 20, RunRules.START_CROWD_COUNT):
 #   Row 1 @20     - introduces the mechanic; the "obvious" center lane hides
 #                   a small penalty, teaching players to read every lane.
-#   Enemies @26-36 - two enemies span lanes 1-2. Breach cost applies per
-#                   un-killed enemy regardless of your own lane, so sitting
-#                   in an empty lane (0, 3, 4) doesn't dodge anything - it
-#                   guarantees paying for both. Killing the enemy in your
-#                   current lane is free; steering from lane 1 to lane 2
-#                   during the encounter can clear both.
+#   Enemies @32-36 - two enemies span lanes 1-2, spawned and simulated from
+#                   level start (like gates, visible from a distance via the
+#                   chase camera's lookahead - not a surprise pop-in). Breach
+#                   cost applies per un-killed enemy regardless of your own
+#                   lane, so sitting in an empty lane (0, 3, 4) doesn't dodge
+#                   anything - it guarantees paying for both. Killing the
+#                   enemy in your current lane is free; steering from lane 1
+#                   to lane 2 during the encounter can clear both.
 #   Row 2 @40     - a big win sits directly beside a heavy loss, testing
 #                   precision steering rather than just sign-reading.
 #   Trail @44-58  - lane 3 has a run of small +4 pickups; committing to that
@@ -60,6 +62,10 @@ static func entries() -> Array[Dictionary]:
 			],
 		},
 		{
+			# "distance" here only orders this entry among the others below
+			# (run_controller.gd spawns and simulates the wave from level
+			# start regardless) - each enemy's own "distance" is what
+			# actually matters for targeting/breach resolution.
 			"distance": 26.0,
 			"kind": "enemy_wave",
 			"enemies": [

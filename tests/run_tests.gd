@@ -48,6 +48,9 @@ func _initialize() -> void:
 	_test_rival_crowd_resolves_to_absolute_difference()
 	_test_rival_crowd_tick_does_nothing_once_defeated()
 	_test_build_multimesh_transforms_matches_crowd_layout_count()
+	_test_apply_shot_damage_reduces_and_clamps_at_zero()
+	_test_apply_shot_damage_is_cooldown_gated()
+	_test_apply_shot_damage_then_tick_carries_count_across_phases()
 
 	if _failures == 0:
 		print("All tests passed")
@@ -387,6 +390,39 @@ func _test_build_multimesh_transforms_matches_crowd_layout_count() -> void:
 		transforms.size(),
 		RunRules.crowd_layout(40).size(),
 		"multimesh transforms match crowd_layout's instance count"
+	)
+
+
+func _test_apply_shot_damage_reduces_and_clamps_at_zero() -> void:
+	var runtime := RivalCrowdRuntime.new(10)
+	var applied: int = runtime.apply_shot_damage(1.0, 15)
+	_assert_eq(applied, 10, "shot damage applied is clamped to what's left")
+	_assert_eq(runtime.rival_count, 0, "rival count clamps at zero, never negative")
+
+
+func _test_apply_shot_damage_is_cooldown_gated() -> void:
+	var runtime := RivalCrowdRuntime.new(100)
+	var first: int = runtime.apply_shot_damage(0.0, 10)
+	var second: int = runtime.apply_shot_damage(0.01, 10)
+	_assert_eq(first, 10, "the first shot applies immediately")
+	_assert_eq(second, 0, "a second shot before FIRE_INTERVAL has passed applies nothing")
+
+
+func _test_apply_shot_damage_then_tick_carries_count_across_phases() -> void:
+	var runtime := RivalCrowdRuntime.new(100)
+	runtime.apply_shot_damage(0.0, 40)
+	_assert_eq(runtime.rival_count, 60, "shooting reduces the count before contact")
+	var crowd_count: int = 150
+	var ticks: int = 0
+	while not runtime.is_defeated() and ticks < 10000:
+		var loss: int = runtime.tick(0.1, crowd_count)
+		crowd_count -= loss
+		ticks += 1
+	_assert_true(runtime.is_defeated(), "the remainder is fully resolved by contact")
+	_assert_eq(
+		crowd_count,
+		150 - 60,
+		"the crowd survives the contact phase using whatever the shooting phase left behind"
 	)
 
 

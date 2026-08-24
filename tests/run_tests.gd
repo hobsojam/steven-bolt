@@ -36,6 +36,7 @@ func _initialize() -> void:
 	_test_expand_pickup_trail_points_carry_lane_and_value()
 	_test_entries_are_sorted_by_distance()
 	_test_entries_contain_a_partial_enemy_wave()
+	_test_entries_contain_a_rival_crowd_before_finish()
 	_test_shot_damage_scales_with_crowd_count()
 	_test_nearest_enemy_index_in_lane_picks_closest()
 	_test_apply_hit_kills_at_zero_hp()
@@ -253,6 +254,20 @@ func _test_entries_contain_a_partial_enemy_wave() -> void:
 	_assert_true(
 		threatened_lanes.size() < RunRules.LANE_COUNT,
 		"the wave doesn't put an enemy in every lane"
+	)
+
+
+func _test_entries_contain_a_rival_crowd_before_finish() -> void:
+	var rival: Dictionary = {}
+	for entry in LevelOneDefinition.entries():
+		if entry["kind"] == "rival_crowd":
+			rival = entry
+			break
+	_assert_true(not rival.is_empty(), "the level has a rival_crowd entry")
+	_assert_true(rival["count"] > 0, "the rival crowd starts with a positive count")
+	_assert_true(
+		LevelOneDefinition.length() - rival["distance"] >= 10.0,
+		"the rival crowd has at least some runway before the finish line"
 	)
 
 

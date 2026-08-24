@@ -24,11 +24,21 @@ extends RefCounted
 #                   loss on the board.
 #   Toll  @110    - threshold tuned so a mostly-good run clears it with room
 #                   to spare but a couple of bad picks along the way fails it.
-#   Finish@140    - short victory stretch after the wall.
+#   Rival @120    - a rival crowd (count 100) blocks the whole track - no
+#                   lane dodges this one. Both crowds visibly tick down
+#                   together (RivalCrowdRules.LOSS_RATE_PER_SECOND) until
+#                   one hits zero; survivor count is exactly
+#                   |your_count - 100|. Placed after the toll wall as a
+#                   final climax, not before it, since the toll wall's own
+#                   fail state already gates weak runs from reaching here.
+#   Finish@150    - stretched from 140 to give the rival battle room to
+#                   fully resolve before the run ends (worst case ~20m of
+#                   travel at near-max speed) rather than cutting it off
+#                   mid-clash.
 
 
 static func length() -> float:
-	return 140.0
+	return 150.0
 
 
 static func expand_pickup_trail(entry: Dictionary) -> Array[Dictionary]:
@@ -120,6 +130,11 @@ static func entries() -> Array[Dictionary]:
 			"distance": 110.0,
 			"kind": "toll_wall",
 			"threshold": 120,
+		},
+		{
+			"distance": 120.0,
+			"kind": "rival_crowd",
+			"count": 100,
 		},
 	]
 

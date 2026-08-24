@@ -70,3 +70,13 @@ static func crowd_layout(crowd_count: int) -> Array[Vector3]:
 		var z: float = row * spacing
 		positions.append(Vector3(x, 0.0, z))
 	return positions
+
+
+static func build_multimesh_transforms(count: int) -> Array[Transform3D]:
+	var positions: Array[Vector3] = crowd_layout(count)
+	var scale: float = crowd_unit_scale(count)
+	var basis := Basis().scaled(Vector3.ONE * scale)
+	var transforms: Array[Transform3D] = []
+	for pos in positions:
+		transforms.append(Transform3D(basis, pos))
+	return transforms

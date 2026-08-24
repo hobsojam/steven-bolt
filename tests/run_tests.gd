@@ -5,6 +5,8 @@ const ChaseCamera := preload("res://scripts/chase_camera.gd")
 const LevelOneDefinition := preload("res://scripts/level_one_definition.gd")
 const CombatRules := preload("res://scripts/combat_rules.gd")
 const EnemyWaveRuntime := preload("res://scripts/enemy_wave_runtime.gd")
+const RivalCrowdRules := preload("res://scripts/rival_crowd_rules.gd")
+const RivalCrowdRuntime := preload("res://scripts/rival_crowd_runtime.gd")
 
 var _failures: int = 0
 
@@ -34,11 +36,18 @@ func _initialize() -> void:
 	_test_expand_pickup_trail_points_carry_lane_and_value()
 	_test_entries_are_sorted_by_distance()
 	_test_entries_contain_a_partial_enemy_wave()
+	_test_entries_contain_a_rival_crowd_before_finish()
 	_test_shot_damage_scales_with_crowd_count()
 	_test_nearest_enemy_index_in_lane_picks_closest()
 	_test_apply_hit_kills_at_zero_hp()
 	_test_try_fire_and_resolve_hits_kills_enemy()
 	_test_resolve_breaches_costs_only_alive_crossed_enemies()
+	_test_rival_crowd_many_small_ticks_accumulate_nonzero_loss()
+	_test_rival_crowd_tick_never_exceeds_smaller_count()
+	_test_rival_crowd_is_defeated_at_zero()
+	_test_rival_crowd_resolves_to_absolute_difference()
+	_test_rival_crowd_tick_does_nothing_once_defeated()
+	_test_build_multimesh_transforms_matches_crowd_layout_count()
 
 	if _failures == 0:
 		print("All tests passed")
@@ -248,6 +257,20 @@ func _test_entries_contain_a_partial_enemy_wave() -> void:
 	)
 
 
+func _test_entries_contain_a_rival_crowd_before_finish() -> void:
+	var rival: Dictionary = {}
+	for entry in LevelOneDefinition.entries():
+		if entry["kind"] == "rival_crowd":
+			rival = entry
+			break
+	_assert_true(not rival.is_empty(), "the level has a rival_crowd entry")
+	_assert_true(rival["count"] > 0, "the rival crowd starts with a positive count")
+	_assert_true(
+		LevelOneDefinition.length() - rival["distance"] >= 10.0,
+		"the rival crowd has at least some runway before the finish line"
+	)
+
+
 func _test_shot_damage_scales_with_crowd_count() -> void:
 	_assert_eq(CombatRules.shot_damage(0), 1, "shot damage has a floor of 1 with no crowd")
 	_assert_true(
@@ -300,6 +323,70 @@ func _test_resolve_breaches_costs_only_alive_crossed_enemies() -> void:
 		cost,
 		CombatRules.ENEMY_BREACH_COST,
 		"breach cost only counts the alive enemy whose distance was crossed"
+	)
+
+
+func _test_rival_crowd_many_small_ticks_accumulate_nonzero_loss() -> void:
+	var runtime := RivalCrowdRuntime.new(1000)
+	var total_loss: int = 0
+	for i in 60:
+		total_loss += runtime.tick(1.0 / 60.0, 1000)
+	_assert_true(
+		total_loss > 0,
+		"many small ticks accumulate to a nonzero loss instead of truncating to 0 forever"
+	)
+	_assert_true(
+		absi(total_loss - RivalCrowdRules.LOSS_RATE_PER_SECOND) <= 1,
+		"accumulated loss over one second matches the per-second rate closely"
+	)
+
+
+func _test_rival_crowd_tick_never_exceeds_smaller_count() -> void:
+	var runtime := RivalCrowdRuntime.new(30)
+	var loss: int = runtime.tick(10.0, 100)
+	_assert_true(loss <= 30, "a single tick never loses more than the smaller side's count")
+	_assert_eq(runtime.rival_count, 0, "a large enough delta fully resolves the smaller side")
+
+
+func _test_rival_crowd_is_defeated_at_zero() -> void:
+	var runtime := RivalCrowdRuntime.new(10)
+	_assert_true(not runtime.is_defeated(), "a rival crowd with units left is not defeated")
+	runtime.tick(10.0, 100)
+	_assert_true(runtime.is_defeated(), "a rival crowd at zero is defeated")
+
+
+func _test_rival_crowd_resolves_to_absolute_difference() -> void:
+	var starting_crowd: int = 130
+	var starting_rival: int = 80
+	var runtime := RivalCrowdRuntime.new(starting_rival)
+	var crowd_count: int = starting_crowd
+	var ticks: int = 0
+	while not runtime.is_defeated() and ticks < 10000:
+		var loss: int = runtime.tick(0.1, crowd_count)
+		crowd_count -= loss
+		ticks += 1
+	_assert_true(runtime.is_defeated(), "the rival crowd is eventually defeated")
+	_assert_eq(
+		crowd_count,
+		starting_crowd - starting_rival,
+		"the surviving crowd matches the 1-for-1 result of an instant subtraction"
+	)
+
+
+func _test_rival_crowd_tick_does_nothing_once_defeated() -> void:
+	var runtime := RivalCrowdRuntime.new(5)
+	runtime.tick(10.0, 100)
+	_assert_true(runtime.is_defeated(), "setup: rival is defeated")
+	var loss: int = runtime.tick(10.0, 100)
+	_assert_eq(loss, 0, "ticking a defeated rival crowd returns zero loss")
+
+
+func _test_build_multimesh_transforms_matches_crowd_layout_count() -> void:
+	var transforms: Array[Transform3D] = RunRules.build_multimesh_transforms(40)
+	_assert_eq(
+		transforms.size(),
+		RunRules.crowd_layout(40).size(),
+		"multimesh transforms match crowd_layout's instance count"
 	)
 
 

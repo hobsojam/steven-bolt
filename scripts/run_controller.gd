@@ -10,6 +10,8 @@ const PickupScript := preload("res://scripts/pickup.gd")
 const CombatRules := preload("res://scripts/combat_rules.gd")
 const EnemyWaveRuntimeScript := preload("res://scripts/enemy_wave_runtime.gd")
 const EnemyWaveVisualScript := preload("res://scripts/enemy_wave_visual.gd")
+const RivalCrowdRuntimeScript := preload("res://scripts/rival_crowd_runtime.gd")
+const RivalCrowdVisualScript := preload("res://scripts/rival_crowd_visual.gd")
 
 var distance_traveled: float = 0.0
 var _elapsed_time: float = 0.0
@@ -18,6 +20,9 @@ var _level_entries: Array[Dictionary] = []
 var _next_entry_index: int = 0
 var _active_wave = null
 var _active_wave_visual: Node3D = null
+var _active_rival = null
+var _active_rival_visual: Node3D = null
+var _active_rival_engage_distance: float = 0.0
 
 @onready var _crowd = $CrowdController
 
@@ -42,6 +47,8 @@ func _process(delta: float) -> void:
 	_resolve_pending_entries()
 	if _active_wave:
 		_update_combat(delta)
+	if _active_rival:
+		_update_rival_battle(delta)
 	if _state == RunState.RUNNING and distance_traveled >= LevelOneDefinition.length():
 		_state = RunState.FINISHED
 
@@ -100,6 +107,25 @@ func _update_combat(delta: float) -> void:
 		_active_wave_visual = null
 
 
+func _update_rival_battle(delta: float) -> void:
+	if distance_traveled < _active_rival_engage_distance:
+		return
+	# Motion never stops elsewhere in this game, so once engaged the rival
+	# visual tracks the crowd's own Z every frame instead of staying at its
+	# spawned position - "crowds mashed together fighting" rather than the
+	# crowd visibly running past a stationary rival mid-battle.
+	_active_rival_visual.position.z = _crowd.position.z
+	var loss: int = _active_rival.tick(delta, _crowd.crowd_count)
+	if loss > 0:
+		_crowd.apply_breach(loss)
+		if _crowd.crowd_count <= 0:
+			_state = RunState.GAME_OVER
+	if _active_rival.is_defeated():
+		_active_rival_visual.queue_free()
+		_active_rival = null
+		_active_rival_visual = null
+
+
 func _spawn_level_visuals() -> void:
 	for entry in _level_entries:
 		var visual
@@ -120,6 +146,12 @@ func _spawn_level_visuals() -> void:
 				_active_wave = EnemyWaveRuntimeScript.new(entry["enemies"])
 				_active_wave_visual = EnemyWaveVisualScript.new(_active_wave)
 				add_child(_active_wave_visual)
+			"rival_crowd":
+				_active_rival = RivalCrowdRuntimeScript.new(entry["count"])
+				_active_rival_visual = RivalCrowdVisualScript.new(_active_rival)
+				_active_rival_engage_distance = entry["distance"]
+				_active_rival_visual.position.z = -entry["distance"]
+				add_child(_active_rival_visual)
 		if visual:
 			add_child(visual)
 			visual.setup(entry)

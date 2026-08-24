@@ -36,7 +36,7 @@ func _initialize() -> void:
 	_test_expand_pickup_trail_points_carry_lane_and_value()
 	_test_entries_are_sorted_by_distance()
 	_test_entries_contain_a_partial_enemy_wave()
-	_test_entries_contain_a_rival_crowd_before_finish()
+	_test_entries_contain_a_horde_before_finish()
 	_test_shot_damage_scales_with_crowd_count()
 	_test_nearest_enemy_index_in_lane_picks_closest()
 	_test_apply_hit_kills_at_zero_hp()
@@ -260,17 +260,17 @@ func _test_entries_contain_a_partial_enemy_wave() -> void:
 	)
 
 
-func _test_entries_contain_a_rival_crowd_before_finish() -> void:
-	var rival: Dictionary = {}
+func _test_entries_contain_a_horde_before_finish() -> void:
+	var horde: Dictionary = {}
 	for entry in LevelOneDefinition.entries():
-		if entry["kind"] == "rival_crowd":
-			rival = entry
+		if entry["kind"] == "horde":
+			horde = entry
 			break
-	_assert_true(not rival.is_empty(), "the level has a rival_crowd entry")
-	_assert_true(rival["count"] > 0, "the rival crowd starts with a positive count")
+	_assert_true(not horde.is_empty(), "the level has a horde entry")
+	_assert_true(horde["count"] > 0, "the horde starts with a positive count")
 	_assert_true(
-		LevelOneDefinition.length() - rival["distance"] >= 10.0,
-		"the rival crowd has at least some runway before the finish line"
+		LevelOneDefinition.length() - horde["distance"] >= 10.0,
+		"the horde has at least some runway before the finish line"
 	)
 
 

@@ -19,11 +19,20 @@ extends RefCounted
 # accumulate loss as a float and only subtract whole units once it crosses
 # 1, or a low per-second/per-shot rate at a high framerate would truncate
 # to a 0 loss every single frame forever.
+#
+# bullets: apply_shot_damage() applies its damage instantly (unlike
+# enemy_wave_runtime.gd, where a bullet travels before resolving a hit) -
+# these entries are purely a visual record of "a shot was just fired from
+# here", consumed by advance_bullets()/rival_crowd_visual.gd so the player
+# sees something leave the crowd, not just the horde's count silently
+# dropping. tick() never touches this array; a plain rival crowd's bullets
+# stays empty forever.
 
 const RivalCrowdRules := preload("res://scripts/rival_crowd_rules.gd")
 const CombatRules := preload("res://scripts/combat_rules.gd")
 
 var rival_count: int
+var bullets: Array[Dictionary] = []
 
 var _loss_accumulator: float = 0.0
 var _fire_cooldown: float = 0.0
@@ -47,7 +56,7 @@ func tick(delta: float, crowd_count: int) -> int:
 	return loss
 
 
-func apply_shot_damage(delta: float, damage: int) -> int:
+func apply_shot_damage(delta: float, damage: int, crowd_distance: float) -> int:
 	if is_defeated():
 		return 0
 	_fire_cooldown -= delta
@@ -56,4 +65,14 @@ func apply_shot_damage(delta: float, damage: int) -> int:
 	_fire_cooldown = CombatRules.FIRE_INTERVAL
 	var applied: int = mini(damage, rival_count)
 	rival_count -= applied
+	bullets.append({"distance": crowd_distance})
 	return applied
+
+
+func advance_bullets(delta: float, target_distance: float) -> void:
+	var remaining: Array[Dictionary] = []
+	for bullet in bullets:
+		bullet["distance"] += CombatRules.BULLET_SPEED * delta
+		if bullet["distance"] < target_distance:
+			remaining.append(bullet)
+	bullets = remaining

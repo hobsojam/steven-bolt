@@ -150,7 +150,8 @@ func _update_horde(delta: float) -> void:
 		# here costs the player nothing, same reward as clearing an
 		# enemy_wave before it breaches.
 		var damage: int = CombatRules.shot_damage(_crowd.crowd_count)
-		_active_horde.apply_shot_damage(delta, damage)
+		_active_horde.apply_shot_damage(delta, damage, distance_traveled)
+		_active_horde.advance_bullets(delta, _active_horde_engage_distance)
 		if _active_horde.is_defeated():
 			_active_horde_visual.queue_free()
 			_active_horde = null
@@ -159,6 +160,10 @@ func _update_horde(delta: float) -> void:
 	# Contact reached with survivors left: identical to _update_rival_battle's
 	# mutual attrition, since apply_shot_damage() and tick() share the same
 	# rival_count and tick() doesn't care how that count got where it is.
+	# Any bullet still mid-flight from the instant contact was reached loses
+	# its narrative meaning (the horde it was headed for is right there now)
+	# so it's dropped rather than animated the rest of the way in.
+	_active_horde.bullets.clear()
 	_active_horde_visual.position.z = _crowd.position.z
 	var loss: int = _active_horde.tick(delta, _crowd.crowd_count)
 	if loss > 0:

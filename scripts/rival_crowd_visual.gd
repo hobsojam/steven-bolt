@@ -1,6 +1,7 @@
 extends Node3D
 
 const RunRules := preload("res://scripts/run_rules.gd")
+const BulletModel := preload("res://assets/models/bullet.glb")
 
 var runtime
 var _model: PackedScene
@@ -9,6 +10,7 @@ var _face_player: bool
 
 var _last_count: int = -1
 var _multimesh_instance: MultiMeshInstance3D
+var _bullet_container: Node3D
 
 
 func _init(crowd_runtime, model: PackedScene, tint, face_player: bool) -> void:
@@ -39,14 +41,25 @@ func _ready() -> void:
 		material.albedo_color = _tint
 		_multimesh_instance.material_override = material
 	add_child(_multimesh_instance)
+	_bullet_container = Node3D.new()
+	add_child(_bullet_container)
 
 
 func _process(_delta: float) -> void:
 	var count: int = runtime.rival_count
-	if count == _last_count:
-		return
-	_last_count = count
-	_rebuild(count)
+	if count != _last_count:
+		_last_count = count
+		_rebuild(count)
+	_refresh_bullets()
+
+
+func _refresh_bullets() -> void:
+	for child in _bullet_container.get_children():
+		child.queue_free()
+	for bullet in runtime.bullets:
+		var model := BulletModel.instantiate() as Node3D
+		model.position = Vector3(0.0, 1.0, -bullet["distance"])
+		_bullet_container.add_child(model)
 
 
 func _rebuild(count: int) -> void:

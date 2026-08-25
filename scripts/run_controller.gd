@@ -12,6 +12,7 @@ const EnemyWaveRuntimeScript := preload("res://scripts/enemy_wave_runtime.gd")
 const EnemyWaveVisualScript := preload("res://scripts/enemy_wave_visual.gd")
 const RivalCrowdRuntimeScript := preload("res://scripts/rival_crowd_runtime.gd")
 const RivalCrowdVisualScript := preload("res://scripts/rival_crowd_visual.gd")
+const CrowdUnitModel := preload("res://assets/models/crowd_unit.glb")
 
 var distance_traveled: float = 0.0
 var _elapsed_time: float = 0.0
@@ -148,7 +149,12 @@ func _spawn_level_visuals() -> void:
 				add_child(_active_wave_visual)
 			"rival_crowd":
 				_active_rival = RivalCrowdRuntimeScript.new(entry["count"])
-				_active_rival_visual = RivalCrowdVisualScript.new(_active_rival)
+				_active_rival_visual = RivalCrowdVisualScript.new(
+					_active_rival,
+					CrowdUnitModel,
+					Color("3a6ea5").srgb_to_linear(),
+					true
+				)
 				_active_rival_engage_distance = entry["distance"]
 				_active_rival_visual.position.z = -entry["distance"]
 				add_child(_active_rival_visual)

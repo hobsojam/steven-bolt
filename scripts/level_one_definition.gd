@@ -24,13 +24,19 @@ extends RefCounted
 #                   loss on the board.
 #   Toll  @110    - threshold tuned so a mostly-good run clears it with room
 #                   to spare but a couple of bad picks along the way fails it.
-#   Rival @120    - a rival crowd (count 100) blocks the whole track - no
-#                   lane dodges this one. Both crowds visibly tick down
-#                   together (RivalCrowdRules.LOSS_RATE_PER_SECOND) until
-#                   one hits zero; survivor count is exactly
-#                   |your_count - 100|. Placed after the toll wall as a
-#                   final climax, not before it, since the toll wall's own
-#                   fail state already gates weak runs from reaching here.
+#   Horde @120    - a horde (count 200) blocks the whole track - no lane
+#                   dodges this one. Auto-fire chips away at it from
+#                   HORDE_SHOOT_RANGE (20) out, i.e. from distance 100
+#                   onward, before it's reached; whatever survives the
+#                   shooting phase resolves the same way a rival crowd does
+#                   - both counts visibly tick down together
+#                   (RivalCrowdRules.LOSS_RATE_PER_SECOND) until the horde
+#                   hits zero. A clean shoot-down kill costs nothing; a
+#                   contact resolution costs exactly whatever the horde had
+#                   left when the crowd reached it. Placed after the toll
+#                   wall as a final climax, not before it, since the toll
+#                   wall's own fail state already gates weak runs from
+#                   reaching here.
 #   Finish@150    - stretched from 140 to give the rival battle room to
 #                   fully resolve before the run ends (worst case ~20m of
 #                   travel at near-max speed) rather than cutting it off
@@ -133,8 +139,8 @@ static func entries() -> Array[Dictionary]:
 		},
 		{
 			"distance": 120.0,
-			"kind": "rival_crowd",
-			"count": 100,
+			"kind": "horde",
+			"count": 200,
 		},
 	]
 

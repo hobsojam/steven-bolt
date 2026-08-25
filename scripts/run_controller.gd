@@ -13,6 +13,12 @@ const EnemyWaveVisualScript := preload("res://scripts/enemy_wave_visual.gd")
 const RivalCrowdRuntimeScript := preload("res://scripts/rival_crowd_runtime.gd")
 const RivalCrowdVisualScript := preload("res://scripts/rival_crowd_visual.gd")
 const CrowdUnitModel := preload("res://assets/models/crowd_unit.glb")
+const EnemyModel := preload("res://assets/models/enemy.glb")
+
+# How far ahead of a horde's engage distance shooting can start (a horde
+# would otherwise sit in firing range for the crowd's entire preceding run,
+# trivializing even a large one - see run_controller.gd's horde design doc).
+const HORDE_SHOOT_RANGE := 20.0
 
 var distance_traveled: float = 0.0
 var _elapsed_time: float = 0.0
@@ -24,6 +30,9 @@ var _active_wave_visual: Node3D = null
 var _active_rival = null
 var _active_rival_visual: Node3D = null
 var _active_rival_engage_distance: float = 0.0
+var _active_horde = null
+var _active_horde_visual: Node3D = null
+var _active_horde_engage_distance: float = 0.0
 
 @onready var _crowd = $CrowdController
 
@@ -50,6 +59,8 @@ func _process(delta: float) -> void:
 		_update_combat(delta)
 	if _active_rival:
 		_update_rival_battle(delta)
+	if _active_horde:
+		_update_horde(delta)
 	if _state == RunState.RUNNING and distance_traveled >= LevelOneDefinition.length():
 		_state = RunState.FINISHED
 
@@ -127,6 +138,39 @@ func _update_rival_battle(delta: float) -> void:
 		_active_rival_visual = null
 
 
+func _update_horde(delta: float) -> void:
+	var distance_to_horde: float = _active_horde_engage_distance - distance_traveled
+	if distance_to_horde > HORDE_SHOOT_RANGE:
+		# Not yet in range: the horde sits at its spawned position, visible
+		# from a distance (like every other pre-spawned encounter) but not
+		# yet interactable.
+		return
+	if distance_traveled < _active_horde_engage_distance:
+		# Approaching but not yet in contact: shoot it down. A clean kill
+		# here costs the player nothing, same reward as clearing an
+		# enemy_wave before it breaches.
+		var damage: int = CombatRules.shot_damage(_crowd.crowd_count)
+		_active_horde.apply_shot_damage(delta, damage)
+		if _active_horde.is_defeated():
+			_active_horde_visual.queue_free()
+			_active_horde = null
+			_active_horde_visual = null
+		return
+	# Contact reached with survivors left: identical to _update_rival_battle's
+	# mutual attrition, since apply_shot_damage() and tick() share the same
+	# rival_count and tick() doesn't care how that count got where it is.
+	_active_horde_visual.position.z = _crowd.position.z
+	var loss: int = _active_horde.tick(delta, _crowd.crowd_count)
+	if loss > 0:
+		_crowd.apply_breach(loss)
+		if _crowd.crowd_count <= 0:
+			_state = RunState.GAME_OVER
+	if _active_horde.is_defeated():
+		_active_horde_visual.queue_free()
+		_active_horde = null
+		_active_horde_visual = null
+
+
 func _spawn_level_visuals() -> void:
 	for entry in _level_entries:
 		var visual
@@ -158,6 +202,17 @@ func _spawn_level_visuals() -> void:
 				_active_rival_engage_distance = entry["distance"]
 				_active_rival_visual.position.z = -entry["distance"]
 				add_child(_active_rival_visual)
+			"horde":
+				_active_horde = RivalCrowdRuntimeScript.new(entry["count"])
+				_active_horde_visual = RivalCrowdVisualScript.new(
+					_active_horde,
+					EnemyModel,
+					null,
+					true
+				)
+				_active_horde_engage_distance = entry["distance"]
+				_active_horde_visual.position.z = -entry["distance"]
+				add_child(_active_horde_visual)
 		if visual:
 			add_child(visual)
 			visual.setup(entry)

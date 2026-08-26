@@ -56,16 +56,19 @@ func tick(delta: float, crowd_count: int) -> int:
 	return loss
 
 
-func apply_shot_damage(delta: float, damage: int, crowd_distance: float) -> int:
+func apply_shot_damage(delta: float, shots: int, crowd_distance: float) -> int:
 	if is_defeated():
 		return 0
 	_fire_cooldown -= delta
 	if _fire_cooldown > 0.0:
 		return 0
 	_fire_cooldown = CombatRules.FIRE_INTERVAL
-	var applied: int = mini(damage, rival_count)
+	var applied: int = mini(shots, rival_count)
 	rival_count -= applied
-	bullets.append({"distance": crowd_distance})
+	# Only as many bullets as damage actually applied - a volley bigger than
+	# what's left to kill would otherwise show bullets flying at nothing.
+	for i in applied:
+		bullets.append({"distance": crowd_distance, "offset": CombatRules.shot_offset(i, applied)})
 	return applied
 
 

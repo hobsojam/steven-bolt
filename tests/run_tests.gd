@@ -37,10 +37,13 @@ func _initialize() -> void:
 	_test_entries_are_sorted_by_distance()
 	_test_entries_contain_a_partial_enemy_wave()
 	_test_entries_contain_a_horde_before_finish()
-	_test_shot_damage_scales_with_crowd_count()
+	_test_shots_per_volley_scales_with_crowd_count()
+	_test_shots_per_volley_caps_at_max()
+	_test_shot_offset_centers_the_volley()
 	_test_nearest_enemy_index_in_lane_picks_closest()
 	_test_apply_hit_kills_at_zero_hp()
 	_test_try_fire_and_resolve_hits_kills_enemy()
+	_test_resolve_hits_drops_bullets_with_no_live_target()
 	_test_resolve_breaches_costs_only_alive_crossed_enemies()
 	_test_rival_crowd_many_small_ticks_accumulate_nonzero_loss()
 	_test_rival_crowd_tick_never_exceeds_smaller_count()
@@ -50,7 +53,8 @@ func _initialize() -> void:
 	_test_build_multimesh_transforms_matches_crowd_layout_count()
 	_test_apply_shot_damage_reduces_and_clamps_at_zero()
 	_test_apply_shot_damage_is_cooldown_gated()
-	_test_apply_shot_damage_spawns_a_bullet_only_when_it_fires()
+	_test_apply_shot_damage_spawns_one_bullet_per_shot()
+	_test_apply_shot_damage_spawns_only_as_many_bullets_as_damage_applied()
 	_test_advance_bullets_moves_and_despawns_at_target()
 	_test_apply_shot_damage_then_tick_carries_count_across_phases()
 
@@ -276,12 +280,27 @@ func _test_entries_contain_a_horde_before_finish() -> void:
 	)
 
 
-func _test_shot_damage_scales_with_crowd_count() -> void:
-	_assert_eq(CombatRules.shot_damage(0), 1, "shot damage has a floor of 1 with no crowd")
+func _test_shots_per_volley_scales_with_crowd_count() -> void:
+	_assert_eq(CombatRules.shots_per_volley(0), 1, "shot count has a floor of 1 with no crowd")
 	_assert_true(
-		CombatRules.shot_damage(200) > CombatRules.shot_damage(20),
-		"shot damage increases as crowd count grows"
+		CombatRules.shots_per_volley(200) > CombatRules.shots_per_volley(20),
+		"shot count increases as crowd count grows"
 	)
+
+
+func _test_shots_per_volley_caps_at_max() -> void:
+	_assert_eq(
+		CombatRules.shots_per_volley(1000000),
+		CombatRules.MAX_SHOTS_PER_VOLLEY,
+		"shot count per volley is capped for sanity at extreme crowd sizes"
+	)
+
+
+func _test_shot_offset_centers_the_volley() -> void:
+	_assert_eq(CombatRules.shot_offset(0, 1), 0.0, "a single shot has no lateral offset")
+	_assert_true(CombatRules.shot_offset(0, 3) < 0.0, "the first of three shots is offset left")
+	_assert_true(CombatRules.shot_offset(2, 3) > 0.0, "the last of three shots is offset right")
+	_assert_eq(CombatRules.shot_offset(1, 3), 0.0, "the middle of three shots is centered")
 
 
 func _test_nearest_enemy_index_in_lane_picks_closest() -> void:
@@ -312,6 +331,22 @@ func _test_try_fire_and_resolve_hits_kills_enemy() -> void:
 	var killed: Array[int] = runtime.resolve_hits()
 	_assert_eq(killed, [0], "a bullet that reaches the enemy's distance kills it")
 	_assert_true(runtime.is_cleared(), "the wave is cleared once its only enemy is killed")
+
+
+func _test_resolve_hits_drops_bullets_with_no_live_target() -> void:
+	var runtime := EnemyWaveRuntime.new([{"lane": 0, "distance": 10.0, "hp": 1}])
+	runtime.try_fire(0, 0.0, 3, 1.0)
+	_assert_eq(runtime.bullets.size(), 3, "a volley of 3 shots fires 3 bullets")
+	_assert_true(
+		runtime.bullets[0]["offset"] != runtime.bullets[2]["offset"],
+		"bullets in a volley are laterally spread apart"
+	)
+	runtime.advance_bullets(1.0)
+	var killed: Array[int] = runtime.resolve_hits()
+	_assert_eq(killed, [0], "the enemy dies exactly once despite the overkill volley")
+	_assert_eq(
+		runtime.bullets.size(), 0, "leftover bullets with no live target are dropped, not kept forever"
+	)
 
 
 func _test_resolve_breaches_costs_only_alive_crossed_enemies() -> void:
@@ -410,20 +445,31 @@ func _test_apply_shot_damage_is_cooldown_gated() -> void:
 	_assert_eq(second, 0, "a second shot before FIRE_INTERVAL has passed applies nothing")
 
 
-func _test_apply_shot_damage_spawns_a_bullet_only_when_it_fires() -> void:
+func _test_apply_shot_damage_spawns_one_bullet_per_shot() -> void:
 	var runtime := RivalCrowdRuntime.new(100)
-	runtime.apply_shot_damage(0.0, 10, 42.0)
-	_assert_eq(runtime.bullets.size(), 1, "a fired shot spawns exactly one bullet")
+	runtime.apply_shot_damage(0.0, 3, 42.0)
+	_assert_eq(runtime.bullets.size(), 3, "a fired volley spawns one bullet per shot")
+	for bullet in runtime.bullets:
+		_assert_eq(
+			bullet["distance"], 42.0, "each bullet starts at the crowd's current distance"
+		)
+	runtime.apply_shot_damage(0.01, 3, 43.0)
+	_assert_eq(runtime.bullets.size(), 3, "a shot still on cooldown does not spawn more bullets")
+
+
+func _test_apply_shot_damage_spawns_only_as_many_bullets_as_damage_applied() -> void:
+	var runtime := RivalCrowdRuntime.new(4)
+	runtime.apply_shot_damage(0.0, 10, 0.0)
 	_assert_eq(
-		runtime.bullets[0]["distance"], 42.0, "the bullet starts at the crowd's current distance"
+		runtime.bullets.size(),
+		4,
+		"bullet count is clamped to the damage actually applied, not the full volley"
 	)
-	runtime.apply_shot_damage(0.01, 10, 43.0)
-	_assert_eq(runtime.bullets.size(), 1, "a shot still on cooldown does not spawn another bullet")
 
 
 func _test_advance_bullets_moves_and_despawns_at_target() -> void:
 	var runtime := RivalCrowdRuntime.new(100)
-	runtime.apply_shot_damage(0.0, 10, 0.0)
+	runtime.apply_shot_damage(0.0, 1, 0.0)
 	runtime.advance_bullets(1.0, 1000.0)
 	_assert_eq(
 		runtime.bullets[0]["distance"],

@@ -7,6 +7,7 @@ const CombatRules := preload("res://scripts/combat_rules.gd")
 const EnemyWaveRuntime := preload("res://scripts/enemy_wave_runtime.gd")
 const RivalCrowdRules := preload("res://scripts/rival_crowd_rules.gd")
 const RivalCrowdRuntime := preload("res://scripts/rival_crowd_runtime.gd")
+const MainScene := preload("res://scenes/main.tscn")
 
 var _failures: int = 0
 
@@ -18,6 +19,11 @@ func _initialize() -> void:
 	_test_apply_gate_exact_zero()
 	_test_apply_gate_stacking()
 	_test_lane_x_symmetry()
+	_test_clamped_lane_moves_multiple_steps()
+	_test_clamped_lane_stops_at_boundaries()
+	_test_lane_steps_from_drag_respects_threshold()
+	_test_lane_steps_from_drag_preserves_direction_and_magnitude()
+	_test_crowd_input_keeps_lane_and_visual_root_in_sync()
 	_test_crowd_layout_empty_for_zero()
 	_test_crowd_layout_caps_at_max_rendered()
 	_test_crowd_layout_stays_within_max_width()
@@ -94,6 +100,77 @@ func _test_lane_x_symmetry() -> void:
 	var leftmost: float = RunRules.lane_x(0)
 	var rightmost: float = RunRules.lane_x(RunRules.LANE_COUNT - 1)
 	_assert_eq(leftmost, -rightmost, "lane positions are symmetric around the track centerline")
+
+
+func _test_clamped_lane_moves_multiple_steps() -> void:
+	_assert_eq(RunRules.clamped_lane(1, 2), 3, "rapid lane input can move multiple steps")
+	_assert_eq(RunRules.clamped_lane(3, -2), 1, "multi-step movement works in both directions")
+
+
+func _test_clamped_lane_stops_at_boundaries() -> void:
+	_assert_eq(RunRules.clamped_lane(0, -1), 0, "left input clamps at the first lane")
+	_assert_eq(
+		RunRules.clamped_lane(RunRules.LANE_COUNT - 1, 3),
+		RunRules.LANE_COUNT - 1,
+		"right input clamps at the last lane"
+	)
+
+
+func _test_lane_steps_from_drag_respects_threshold() -> void:
+	_assert_eq(RunRules.lane_steps_from_drag(39.9), 0, "a short drag stays in its lane")
+	_assert_eq(RunRules.lane_steps_from_drag(40.0), 1, "the threshold advances one lane")
+	_assert_eq(RunRules.lane_steps_from_drag(-40.0), -1, "the negative threshold moves left")
+
+
+func _test_lane_steps_from_drag_preserves_direction_and_magnitude() -> void:
+	_assert_eq(RunRules.lane_steps_from_drag(125.0), 3, "a large drag advances multiple lanes")
+	_assert_eq(RunRules.lane_steps_from_drag(-95.0), -2, "large left drags retain direction")
+
+
+func _test_crowd_input_keeps_lane_and_visual_root_in_sync() -> void:
+	var main := MainScene.instantiate()
+	root.add_child(main)
+	var crowd = main.get_node("CrowdController")
+	# This suite runs from SceneTree._initialize(), before @onready assignments
+	# fire on an instantiated scene. Bind the child that _ready would resolve.
+	crowd._crowd_visual = crowd.get_node("CrowdVisual")
+	var keyboard := InputEventKey.new()
+	keyboard.keycode = KEY_D
+	keyboard.pressed = true
+	crowd._unhandled_input(keyboard)
+	_assert_eq(crowd.current_lane, 3, "keyboard input advances one lane")
+	_assert_true(
+		absf(crowd.position.x - RunRules.lane_x(crowd.current_lane)) < 0.001,
+		"keyboard input keeps the visible root on its resolved lane"
+	)
+	var mouse_down := InputEventMouseButton.new()
+	mouse_down.button_index = MOUSE_BUTTON_LEFT
+	mouse_down.pressed = true
+	mouse_down.position = Vector2.ZERO
+	crowd._unhandled_input(mouse_down)
+	var mouse_drag := InputEventMouseMotion.new()
+	mouse_drag.position = Vector2(85.0, 0.0)
+	crowd._unhandled_input(mouse_drag)
+	_assert_eq(crowd.current_lane, 4, "mouse drag clamps rapid movement at the track edge")
+	_assert_true(
+		absf(crowd.position.x - RunRules.lane_x(crowd.current_lane)) < 0.001,
+		"mouse drag keeps the visible root on its resolved lane"
+	)
+	var touch_down := InputEventScreenTouch.new()
+	touch_down.index = 0
+	touch_down.pressed = true
+	touch_down.position = Vector2(100.0, 0.0)
+	crowd._unhandled_input(touch_down)
+	var touch_drag := InputEventScreenDrag.new()
+	touch_drag.index = 0
+	touch_drag.position = Vector2(15.0, 0.0)
+	crowd._unhandled_input(touch_drag)
+	_assert_eq(crowd.current_lane, 2, "touch drag consumes multiple lane thresholds")
+	_assert_true(
+		absf(crowd.position.x - RunRules.lane_x(crowd.current_lane)) < 0.001,
+		"touch drag keeps the visible root on its resolved lane"
+	)
+	main.free()
 
 
 func _test_crowd_layout_empty_for_zero() -> void:

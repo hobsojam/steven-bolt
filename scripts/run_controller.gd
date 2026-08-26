@@ -1,5 +1,8 @@
 extends Node3D
 
+signal feedback_requested(kind: StringName, amount: int)
+signal run_state_changed(state: int)
+
 enum RunState { START, RUNNING, GAME_OVER, FINISHED }
 
 const RunRules := preload("res://scripts/run_rules.gd")
@@ -45,7 +48,7 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	if _state == RunState.START:
 		if Input.is_action_just_pressed("ui_accept"):
-			_state = RunState.RUNNING
+			_set_state(RunState.RUNNING)
 		return
 	if _state != RunState.RUNNING:
 		if Input.is_action_just_pressed("ui_accept"):
@@ -62,7 +65,8 @@ func _process(delta: float) -> void:
 	if _active_horde:
 		_update_horde(delta)
 	if _state == RunState.RUNNING and distance_traveled >= LevelOneDefinition.length():
-		_state = RunState.FINISHED
+		_emit_feedback(&"complete")
+		_set_state(RunState.FINISHED)
 
 
 func is_start() -> bool:
@@ -75,6 +79,17 @@ func is_game_over() -> bool:
 
 func is_finished() -> bool:
 	return _state == RunState.FINISHED
+
+
+func _set_state(next_state: int) -> void:
+	if next_state == _state:
+		return
+	_state = next_state
+	run_state_changed.emit(_state)
+
+
+func _emit_feedback(kind: StringName, amount: int = 0) -> void:
+	feedback_requested.emit(kind, amount)
 
 
 func _resolve_pending_entries() -> void:
@@ -92,29 +107,52 @@ func _resolve_entry(entry: Dictionary) -> void:
 	match entry["kind"]:
 		"gate_row":
 			var lane_data: Dictionary = entry["lanes"][_crowd.current_lane]
+			var previous_count: int = _crowd.crowd_count
 			_crowd.apply_gate(lane_data["op"], lane_data["value"])
 			if _crowd.crowd_count <= 0:
-				_state = RunState.GAME_OVER
+				_emit_feedback(&"failure", previous_count)
+				_set_state(RunState.GAME_OVER)
+			elif _crowd.crowd_count > previous_count:
+				_emit_feedback(&"gate_gain", _crowd.crowd_count - previous_count)
+			elif _crowd.crowd_count < previous_count:
+				_emit_feedback(&"gate_loss", previous_count - _crowd.crowd_count)
 		"toll_wall":
 			if not _crowd.apply_toll(entry["threshold"]):
-				_state = RunState.GAME_OVER
+				_emit_feedback(&"toll_fail", entry["threshold"])
+				_set_state(RunState.GAME_OVER)
+			else:
+				_emit_feedback(&"toll_pass", entry["threshold"])
 		"pickup":
 			if _crowd.current_lane == entry["lane"]:
+				var previous_count: int = _crowd.crowd_count
 				_crowd.apply_gate(entry["op"], entry["value"])
+				var difference: int = _crowd.crowd_count - previous_count
+				if difference > 0:
+					_emit_feedback(&"pickup_gain", difference)
+				elif difference < 0:
+					_emit_feedback(&"pickup_loss", -difference)
 
 
 func _update_combat(delta: float) -> void:
 	var shots: int = CombatRules.shots_per_volley(_crowd.crowd_count)
+	var bullets_before: int = _active_wave.bullets.size()
 	_active_wave.try_fire(
 		_crowd.current_lane, distance_traveled, shots, _crowd.crowd_count, delta
 	)
+	if _active_wave.bullets.size() > bullets_before:
+		_emit_feedback(&"shot", _active_wave.bullets.size() - bullets_before)
 	_active_wave.advance_bullets(delta)
-	_active_wave.resolve_hits()
+	var killed: Array[int] = _active_wave.resolve_hits()
+	if not killed.is_empty():
+		_emit_feedback(&"hit", killed.size())
 	var breach_cost: int = _active_wave.resolve_breaches(distance_traveled)
 	if breach_cost > 0:
 		_crowd.apply_breach(breach_cost)
 		if _crowd.crowd_count <= 0:
-			_state = RunState.GAME_OVER
+			_emit_feedback(&"failure", breach_cost)
+			_set_state(RunState.GAME_OVER)
+		else:
+			_emit_feedback(&"damage", breach_cost)
 	if _active_wave.is_cleared():
 		_active_wave_visual.queue_free()
 		_active_wave = null
@@ -133,7 +171,10 @@ func _update_rival_battle(delta: float) -> void:
 	if loss > 0:
 		_crowd.apply_breach(loss)
 		if _crowd.crowd_count <= 0:
-			_state = RunState.GAME_OVER
+			_emit_feedback(&"failure", loss)
+			_set_state(RunState.GAME_OVER)
+		else:
+			_emit_feedback(&"damage", loss)
 	if _active_rival.is_defeated():
 		_active_rival_visual.queue_free()
 		_active_rival = null
@@ -152,9 +193,14 @@ func _update_horde(delta: float) -> void:
 		# here costs the player nothing, same reward as clearing an
 		# enemy_wave before it breaches.
 		var shots: int = CombatRules.shots_per_volley(_crowd.crowd_count)
-		_active_horde.apply_shot_damage(delta, shots, distance_traveled, _crowd.crowd_count)
+		var applied_damage: int = _active_horde.apply_shot_damage(
+			delta, shots, distance_traveled, _crowd.crowd_count
+		)
+		if applied_damage > 0:
+			_emit_feedback(&"shot", applied_damage)
 		_active_horde.advance_bullets(delta, _active_horde_engage_distance)
 		if _active_horde.is_defeated():
+			_emit_feedback(&"hit", 1)
 			_active_horde_visual.queue_free()
 			_active_horde = null
 			_active_horde_visual = null
@@ -171,7 +217,10 @@ func _update_horde(delta: float) -> void:
 	if loss > 0:
 		_crowd.apply_breach(loss)
 		if _crowd.crowd_count <= 0:
-			_state = RunState.GAME_OVER
+			_emit_feedback(&"failure", loss)
+			_set_state(RunState.GAME_OVER)
+		else:
+			_emit_feedback(&"damage", loss)
 	if _active_horde.is_defeated():
 		_active_horde_visual.queue_free()
 		_active_horde = null

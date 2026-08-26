@@ -16,6 +16,14 @@ assets are shared between them).
 No monetization of any kind is planned or wanted for this project. Do not
 add ad, in-app-purchase, or currency hooks, even as inert scaffolding.
 
+## Backlog
+
+GitHub Issues is the source of truth for the project backlog. Check open issues
+before proposing or starting non-trivial follow-up work, avoid duplicates, and
+record actionable future work as issues rather than repository TODO lists.
+Deferred ideas in `GAME_SPEC.md` are not active backlog items unless they also
+have an open issue.
+
 ## Read before working on art
 
 **`ART_SPEC.md`** — the target look, asset list, poly/texture budgets, and

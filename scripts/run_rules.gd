@@ -5,7 +5,6 @@ const LANE_SPACING := 1.6
 const RUN_SPEED := 6.0
 const MAX_RUN_SPEED := 11.0
 const SPEED_RAMP_PER_SECOND := 0.15
-const LANE_SWITCH_SPEED := 10.0
 const SWIPE_THRESHOLD_PX := 40.0
 const START_CROWD_COUNT := 1
 const MAX_RENDERED_UNITS := 150
@@ -17,6 +16,14 @@ const CROWD_SCALE_PER_DOUBLING := 0.85
 
 static func lane_x(lane_index: int) -> float:
 	return (lane_index - (LANE_COUNT - 1) / 2.0) * LANE_SPACING
+
+
+static func clamped_lane(current_lane: int, lane_delta: int) -> int:
+	return clampi(current_lane + lane_delta, 0, LANE_COUNT - 1)
+
+
+static func lane_steps_from_drag(drag_delta_x: float) -> int:
+	return int(drag_delta_x / SWIPE_THRESHOLD_PX)
 
 
 static func current_speed(elapsed_time: float) -> float:

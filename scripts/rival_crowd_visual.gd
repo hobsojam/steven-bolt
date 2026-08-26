@@ -64,7 +64,7 @@ func _refresh_bullets() -> void:
 		# (see run_controller.gd's spawn code), so a child's local z needs
 		# the parent's own offset subtracted back out to land at the
 		# intended world position instead of stacking on top of it.
-		model.position = Vector3(bullet["offset"], 1.0, -bullet["distance"] - position.z)
+		model.position = Vector3(bullet["offset"], bullet["height"], -bullet["distance"] - position.z)
 		_bullet_container.add_child(model)
 
 

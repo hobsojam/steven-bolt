@@ -52,13 +52,21 @@ func apply_hit(enemy_index: int, damage: int) -> bool:
 	return false
 
 
-func try_fire(crowd_lane: int, crowd_distance: float, damage: int, delta: float) -> void:
+func try_fire(crowd_lane: int, crowd_distance: float, shots: int, delta: float) -> void:
 	_fire_cooldown -= delta
 	if _fire_cooldown > 0.0:
 		return
 	if nearest_enemy_index_in_lane(crowd_lane) == -1:
 		return
-	bullets.append({"lane": crowd_lane, "distance": crowd_distance, "damage": damage})
+	for i in shots:
+		bullets.append(
+			{
+				"lane": crowd_lane,
+				"distance": crowd_distance,
+				"damage": CombatRules.PER_SHOT_DAMAGE,
+				"offset": CombatRules.shot_offset(i, shots),
+			}
+		)
 	_fire_cooldown = CombatRules.FIRE_INTERVAL
 
 
@@ -72,7 +80,12 @@ func resolve_hits() -> Array[int]:
 	var remaining_bullets: Array[Dictionary] = []
 	for bullet in bullets:
 		var target_index: int = nearest_enemy_index_in_lane(bullet["lane"])
-		if target_index != -1 and bullet["distance"] >= enemies[target_index]["distance"]:
+		if target_index == -1:
+			# Its target died to another bullet in the same volley - drop it
+			# rather than letting it fly forever with nothing left to resolve
+			# against.
+			continue
+		if bullet["distance"] >= enemies[target_index]["distance"]:
 			if apply_hit(target_index, bullet["damage"]):
 				killed.append(target_index)
 		else:

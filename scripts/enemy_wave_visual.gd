@@ -40,6 +40,6 @@ func _spawn_enemy_visual(enemy: Dictionary) -> Node3D:
 func _spawn_bullet_visual(bullet: Dictionary) -> Node3D:
 	var model := BulletModel.instantiate() as Node3D
 	model.position = Vector3(
-		RunRules.lane_x(bullet["lane"]) + bullet["offset"], 1.0, -bullet["distance"]
+		RunRules.lane_x(bullet["lane"]) + bullet["offset"], bullet["height"], -bullet["distance"]
 	)
 	return model

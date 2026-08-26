@@ -12,6 +12,7 @@ extends RefCounted
 # simplification, not a literal single-target projectile.
 
 const CombatRules := preload("res://scripts/combat_rules.gd")
+const RunRules := preload("res://scripts/run_rules.gd")
 
 var enemies: Array[Dictionary] = []
 var bullets: Array[Dictionary] = []
@@ -52,19 +53,29 @@ func apply_hit(enemy_index: int, damage: int) -> bool:
 	return false
 
 
-func try_fire(crowd_lane: int, crowd_distance: float, shots: int, delta: float) -> void:
+func try_fire(
+	crowd_lane: int, crowd_distance: float, shots: int, crowd_count: int, delta: float
+) -> void:
 	_fire_cooldown -= delta
 	if _fire_cooldown > 0.0:
 		return
 	if nearest_enemy_index_in_lane(crowd_lane) == -1:
 		return
+	# Each shot starts from a random point along the crowd's actual front
+	# edge - many individual men firing, rather than every bullet leaving
+	# from one point and fanning out into a neat, unnatural-looking row.
+	var half_width: float = RunRules.crowd_front_edge_half_width(crowd_count)
 	for i in shots:
 		bullets.append(
 			{
 				"lane": crowd_lane,
 				"distance": crowd_distance,
 				"damage": CombatRules.PER_SHOT_DAMAGE,
-				"offset": CombatRules.shot_offset(i, shots),
+				"offset": randf_range(-half_width, half_width),
+				"height": (
+					CombatRules.SHOT_HEIGHT
+					+ randf_range(-CombatRules.SHOT_HEIGHT_JITTER, CombatRules.SHOT_HEIGHT_JITTER)
+				),
 			}
 		)
 	_fire_cooldown = CombatRules.FIRE_INTERVAL

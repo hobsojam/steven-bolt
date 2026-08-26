@@ -80,3 +80,15 @@ static func build_multimesh_transforms(count: int) -> Array[Transform3D]:
 	for pos in positions:
 		transforms.append(Transform3D(basis, pos))
 	return transforms
+
+
+static func crowd_front_edge_half_width(count: int) -> float:
+	# Reuses crowd_layout() itself (rather than re-deriving the column/
+	# spacing math) so this always matches the actual rendered crowd's
+	# width exactly, including its width/depth caps - used to scatter shot
+	# origins across "the crowd" instead of a single point.
+	var half_width: float = 0.0
+	for pos in crowd_layout(count):
+		if pos.z == 0.0:
+			half_width = maxf(half_width, absf(pos.x))
+	return half_width

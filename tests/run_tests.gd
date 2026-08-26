@@ -39,7 +39,7 @@ func _initialize() -> void:
 	_test_entries_contain_a_horde_before_finish()
 	_test_shots_per_volley_scales_with_crowd_count()
 	_test_shots_per_volley_caps_at_max()
-	_test_shot_offset_centers_the_volley()
+	_test_crowd_front_edge_half_width_grows_with_crowd_count()
 	_test_nearest_enemy_index_in_lane_picks_closest()
 	_test_apply_hit_kills_at_zero_hp()
 	_test_try_fire_and_resolve_hits_kills_enemy()
@@ -296,11 +296,14 @@ func _test_shots_per_volley_caps_at_max() -> void:
 	)
 
 
-func _test_shot_offset_centers_the_volley() -> void:
-	_assert_eq(CombatRules.shot_offset(0, 1), 0.0, "a single shot has no lateral offset")
-	_assert_true(CombatRules.shot_offset(0, 3) < 0.0, "the first of three shots is offset left")
-	_assert_true(CombatRules.shot_offset(2, 3) > 0.0, "the last of three shots is offset right")
-	_assert_eq(CombatRules.shot_offset(1, 3), 0.0, "the middle of three shots is centered")
+func _test_crowd_front_edge_half_width_grows_with_crowd_count() -> void:
+	_assert_eq(
+		RunRules.crowd_front_edge_half_width(0), 0.0, "an empty crowd has no front edge width"
+	)
+	_assert_true(
+		RunRules.crowd_front_edge_half_width(50) > RunRules.crowd_front_edge_half_width(2),
+		"a bigger crowd has a wider front edge to scatter shot origins across"
+	)
 
 
 func _test_nearest_enemy_index_in_lane_picks_closest() -> void:
@@ -325,7 +328,7 @@ func _test_apply_hit_kills_at_zero_hp() -> void:
 
 func _test_try_fire_and_resolve_hits_kills_enemy() -> void:
 	var runtime := EnemyWaveRuntime.new([{"lane": 0, "distance": 10.0, "hp": 1}])
-	runtime.try_fire(0, 0.0, 1, 1.0)
+	runtime.try_fire(0, 0.0, 1, 50, 1.0)
 	_assert_eq(runtime.bullets.size(), 1, "a target in range fires a bullet")
 	runtime.advance_bullets(1.0)
 	var killed: Array[int] = runtime.resolve_hits()
@@ -335,7 +338,7 @@ func _test_try_fire_and_resolve_hits_kills_enemy() -> void:
 
 func _test_resolve_hits_drops_bullets_with_no_live_target() -> void:
 	var runtime := EnemyWaveRuntime.new([{"lane": 0, "distance": 10.0, "hp": 1}])
-	runtime.try_fire(0, 0.0, 3, 1.0)
+	runtime.try_fire(0, 0.0, 3, 50, 1.0)
 	_assert_eq(runtime.bullets.size(), 3, "a volley of 3 shots fires 3 bullets")
 	_assert_true(
 		runtime.bullets[0]["offset"] != runtime.bullets[2]["offset"],
@@ -432,34 +435,34 @@ func _test_build_multimesh_transforms_matches_crowd_layout_count() -> void:
 
 func _test_apply_shot_damage_reduces_and_clamps_at_zero() -> void:
 	var runtime := RivalCrowdRuntime.new(10)
-	var applied: int = runtime.apply_shot_damage(1.0, 15, 0.0)
+	var applied: int = runtime.apply_shot_damage(1.0, 15, 0.0, 50)
 	_assert_eq(applied, 10, "shot damage applied is clamped to what's left")
 	_assert_eq(runtime.rival_count, 0, "rival count clamps at zero, never negative")
 
 
 func _test_apply_shot_damage_is_cooldown_gated() -> void:
 	var runtime := RivalCrowdRuntime.new(100)
-	var first: int = runtime.apply_shot_damage(0.0, 10, 0.0)
-	var second: int = runtime.apply_shot_damage(0.01, 10, 0.0)
+	var first: int = runtime.apply_shot_damage(0.0, 10, 0.0, 50)
+	var second: int = runtime.apply_shot_damage(0.01, 10, 0.0, 50)
 	_assert_eq(first, 10, "the first shot applies immediately")
 	_assert_eq(second, 0, "a second shot before FIRE_INTERVAL has passed applies nothing")
 
 
 func _test_apply_shot_damage_spawns_one_bullet_per_shot() -> void:
 	var runtime := RivalCrowdRuntime.new(100)
-	runtime.apply_shot_damage(0.0, 3, 42.0)
+	runtime.apply_shot_damage(0.0, 3, 42.0, 50)
 	_assert_eq(runtime.bullets.size(), 3, "a fired volley spawns one bullet per shot")
 	for bullet in runtime.bullets:
 		_assert_eq(
 			bullet["distance"], 42.0, "each bullet starts at the crowd's current distance"
 		)
-	runtime.apply_shot_damage(0.01, 3, 43.0)
+	runtime.apply_shot_damage(0.01, 3, 43.0, 50)
 	_assert_eq(runtime.bullets.size(), 3, "a shot still on cooldown does not spawn more bullets")
 
 
 func _test_apply_shot_damage_spawns_only_as_many_bullets_as_damage_applied() -> void:
 	var runtime := RivalCrowdRuntime.new(4)
-	runtime.apply_shot_damage(0.0, 10, 0.0)
+	runtime.apply_shot_damage(0.0, 10, 0.0, 50)
 	_assert_eq(
 		runtime.bullets.size(),
 		4,
@@ -469,7 +472,7 @@ func _test_apply_shot_damage_spawns_only_as_many_bullets_as_damage_applied() -> 
 
 func _test_advance_bullets_moves_and_despawns_at_target() -> void:
 	var runtime := RivalCrowdRuntime.new(100)
-	runtime.apply_shot_damage(0.0, 1, 0.0)
+	runtime.apply_shot_damage(0.0, 1, 0.0, 50)
 	runtime.advance_bullets(1.0, 1000.0)
 	_assert_eq(
 		runtime.bullets[0]["distance"],
@@ -482,7 +485,7 @@ func _test_advance_bullets_moves_and_despawns_at_target() -> void:
 
 func _test_apply_shot_damage_then_tick_carries_count_across_phases() -> void:
 	var runtime := RivalCrowdRuntime.new(100)
-	runtime.apply_shot_damage(0.0, 40, 0.0)
+	runtime.apply_shot_damage(0.0, 40, 0.0, 50)
 	_assert_eq(runtime.rival_count, 60, "shooting reduces the count before contact")
 	var crowd_count: int = 150
 	var ticks: int = 0

@@ -30,6 +30,7 @@ extends RefCounted
 
 const RivalCrowdRules := preload("res://scripts/rival_crowd_rules.gd")
 const CombatRules := preload("res://scripts/combat_rules.gd")
+const RunRules := preload("res://scripts/run_rules.gd")
 
 var rival_count: int
 var bullets: Array[Dictionary] = []
@@ -56,7 +57,7 @@ func tick(delta: float, crowd_count: int) -> int:
 	return loss
 
 
-func apply_shot_damage(delta: float, shots: int, crowd_distance: float) -> int:
+func apply_shot_damage(delta: float, shots: int, crowd_distance: float, crowd_count: int) -> int:
 	if is_defeated():
 		return 0
 	_fire_cooldown -= delta
@@ -67,8 +68,20 @@ func apply_shot_damage(delta: float, shots: int, crowd_distance: float) -> int:
 	rival_count -= applied
 	# Only as many bullets as damage actually applied - a volley bigger than
 	# what's left to kill would otherwise show bullets flying at nothing.
+	# Each starts from a random point along the crowd's actual front edge -
+	# many individual men firing, not a single point fanning out evenly.
+	var half_width: float = RunRules.crowd_front_edge_half_width(crowd_count)
 	for i in applied:
-		bullets.append({"distance": crowd_distance, "offset": CombatRules.shot_offset(i, applied)})
+		bullets.append(
+			{
+				"distance": crowd_distance,
+				"offset": randf_range(-half_width, half_width),
+				"height": (
+					CombatRules.SHOT_HEIGHT
+					+ randf_range(-CombatRules.SHOT_HEIGHT_JITTER, CombatRules.SHOT_HEIGHT_JITTER)
+				),
+			}
+		)
 	return applied
 
 

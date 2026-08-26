@@ -105,7 +105,9 @@ func _resolve_entry(entry: Dictionary) -> void:
 
 func _update_combat(delta: float) -> void:
 	var shots: int = CombatRules.shots_per_volley(_crowd.crowd_count)
-	_active_wave.try_fire(_crowd.current_lane, distance_traveled, shots, delta)
+	_active_wave.try_fire(
+		_crowd.current_lane, distance_traveled, shots, _crowd.crowd_count, delta
+	)
 	_active_wave.advance_bullets(delta)
 	_active_wave.resolve_hits()
 	var breach_cost: int = _active_wave.resolve_breaches(distance_traveled)
@@ -150,7 +152,7 @@ func _update_horde(delta: float) -> void:
 		# here costs the player nothing, same reward as clearing an
 		# enemy_wave before it breaches.
 		var shots: int = CombatRules.shots_per_volley(_crowd.crowd_count)
-		_active_horde.apply_shot_damage(delta, shots, distance_traveled)
+		_active_horde.apply_shot_damage(delta, shots, distance_traveled, _crowd.crowd_count)
 		_active_horde.advance_bullets(delta, _active_horde_engage_distance)
 		if _active_horde.is_defeated():
 			_active_horde_visual.queue_free()

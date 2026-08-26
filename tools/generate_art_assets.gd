@@ -290,25 +290,29 @@ func _build_enemy() -> MeshInstance3D:
 
 func _build_bullet() -> MeshInstance3D:
 	var mesh := ArrayMesh.new()
-	var glow := _emissive_material("Friendly bolt", Color("fff59d"), 2.2)
-	var core := _emissive_material("Bolt core", Color("ffffff"), 2.8)
+	# Sized and lit well past what the bolt's own geometry would suggest -
+	# at the range and speed these travel (see combat_rules.gd's
+	# BULLET_SPEED/FIRE_INTERVAL), a "realistically" sized bolt reads as
+	# nothing at all against the track, so this leans hard into visibility.
+	var glow := _emissive_material("Friendly bolt", Color("fff59d"), 4.5)
+	var core := _emissive_material("Bolt core", Color("ffffff"), 6.0)
 	var forward_basis := Basis.from_euler(Vector3(deg_to_rad(90.0), 0.0, 0.0))
 
 	var body := CylinderMesh.new()
-	body.top_radius = 0.065
-	body.bottom_radius = 0.065
-	body.height = 0.18
+	body.top_radius = 0.16
+	body.bottom_radius = 0.16
+	body.height = 0.45
 	body.radial_segments = 6
 	body.rings = 1
 	_append(mesh, body, Transform3D(forward_basis, Vector3.ZERO), glow)
 
 	var tip := CylinderMesh.new()
 	tip.top_radius = 0.0
-	tip.bottom_radius = 0.08
-	tip.height = 0.12
+	tip.bottom_radius = 0.2
+	tip.height = 0.3
 	tip.radial_segments = 6
 	tip.rings = 1
-	_append(mesh, tip, Transform3D(forward_basis, Vector3(0.0, 0.0, -0.15)), core)
+	_append(mesh, tip, Transform3D(forward_basis, Vector3(0.0, 0.0, -0.375)), core)
 
 	var instance := MeshInstance3D.new()
 	instance.name = "Bullet"

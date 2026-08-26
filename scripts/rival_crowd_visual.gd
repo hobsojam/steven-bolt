@@ -58,7 +58,13 @@ func _refresh_bullets() -> void:
 		child.queue_free()
 	for bullet in runtime.bullets:
 		var model := BulletModel.instantiate() as Node3D
-		model.position = Vector3(0.0, 1.0, -bullet["distance"])
+		# bullet["distance"] is an absolute world distance (matching the
+		# convention everywhere else - crowd_controller, gates, enemy_wave
+		# bullets). This node itself sits at -engage_distance in world space
+		# (see run_controller.gd's spawn code), so a child's local z needs
+		# the parent's own offset subtracted back out to land at the
+		# intended world position instead of stacking on top of it.
+		model.position = Vector3(0.0, 1.0, -bullet["distance"] - position.z)
 		_bullet_container.add_child(model)
 
 

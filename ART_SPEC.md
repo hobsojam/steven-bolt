@@ -14,12 +14,15 @@
   — there's no per-unit texture variation without a shader change. Flag it
   if you want that; it's a small addition on my end, not something the art
   alone can do.
-- **Update: items 1-6 below are done.** The first art pass (this spec,
+- **Update: items 1-9 below are done.** The first art pass (this spec,
   originally) replaced the crowd/gates/toll-wall/road/sky/UI-theme
   placeholders with real `.glb` models, a road texture, a procedural sky,
-  and a `Theme` resource — all live in the project now. Two mechanics
-  (auto-fire combat, the pickup-trail lanes) were built *after* that pass
-  and are still primitive placeholders: **items 7-9 are the new ask.**
+  and a `Theme` resource. A second pass delivered the enemy, bullet, and
+  pickup marker models for the combat/pickup-trail mechanics built after
+  the first pass. All nine are live in the project now. A third mechanic
+  (per-zone environment mood, `scripts/environment_controller.gd`) just
+  shipped with primitive-placeholder roadside scenery: **item 10 is the
+  new ask.**
 - Enemies, bullets, and pickup markers are each a plain individual
   `MeshInstance3D` (`scripts/enemy_wave_visual.gd`, `scripts/pickup.gd`) —
   **not** MultiMesh like the crowd. Per-instance material/texture variety is
@@ -60,8 +63,8 @@ new hex colors you pick.
 
 ## Asset list
 
-**Items 1-6 are done** (real assets already in the project) — kept below for
-reference/context, not as an active ask. **Items 7-9 are the new ask.**
+**Items 1-9 are done** (real assets already in the project) — kept below for
+reference/context, not as an active ask. **Item 10 is the new ask.**
 
 ### 1. Crowd unit character model — done
 - Delivered as `assets/models/crowd_unit.glb`, ~1m tall, origin at ground
@@ -147,7 +150,7 @@ reference/context, not as an active ask. **Items 7-9 are the new ask.**
   authoring one directly, or just hand me a font file plus color/style
   notes and I'll build the `Theme` resource myself.
 
-### 7. Enemy model — new
+### 7. Enemy model — done
 - Currently a plain red `CapsuleMesh` (`scripts/enemy_wave_visual.gd`).
   Enemies are stationary level content the crowd approaches and shoots down
   — same as gates, they're spawned and visible from a distance for the
@@ -165,7 +168,7 @@ reference/context, not as an active ask. **Items 7-9 are the new ask.**
 - **Poly budget: ≤500 triangles.** Only 1-2 enemies are ever visible per
   wave right now, so there's headroom versus the crowd unit's 800 budget.
 
-### 8. Bullet model — new
+### 8. Bullet model — done
 - Currently a small emissive yellow `SphereMesh` (`scripts/enemy_wave_visual.gd`).
 - A simple glowing projectile/energy bolt — the pale yellow placeholder
   color (`#FFF59D`) reads fine as "friendly fire," but pick whatever sells
@@ -176,7 +179,7 @@ reference/context, not as an active ask. **Items 7-9 are the new ask.**
 - **Poly budget: ≤100 triangles.** Keep it very cheap; several can exist on
   screen at once.
 
-### 9. Pickup marker — new
+### 9. Pickup marker — done
 - Currently just floating `Label3D` text, no model at all
   (`scripts/pickup.gd`). A small collectible marker (coin, flag, orb —
   whatever reads as "run through this to collect it") for the pickup-trail
@@ -189,6 +192,36 @@ reference/context, not as an active ask. **Items 7-9 are the new ask.**
   clear flat readable area near the marker for it.
 - **Poly budget: ≤150 triangles** — several can be visible in a row along a
   trail at once.
+
+### 10. Roadside scenery props — new
+- Currently simple `PrimitiveMesh` placeholders assembled directly in code
+  (`scripts/environment_controller.gd`): a tree is a brown cylinder trunk
+  + a green cone canopy, a rock is a squashed gray sphere, a banner is a
+  thin pole + a small flag. Scattered along both sides of the track,
+  alternating left/right, at a spacing that varies per stretch of track
+  (`scripts/environment_zones.gd`) — same "spawned and visible from a
+  distance, no pop-in" treatment as gates/enemies.
+- The level is divided into four mood zones (a bright calm opening, a more
+  energetic middle stretch, a darker stretch foreshadowing the toll
+  wall/horde fight, and a warm finish) — each currently maps to one prop
+  type (`tree`, `rock`, or `banner`). If you want to expand this into more
+  distinct prop variety per zone (e.g. bushes, dead trees, cairns, small
+  ruins) rather than one shape repeated, that's a welcome upgrade - just
+  tell me the new type names and I'll wire the mapping.
+- Style: same toy/chunky low-poly language as everything else here -
+  simple, bold silhouettes, no fine detail (these are background dressing,
+  seen only briefly and from a distance as the crowd runs past).
+- Bounding box: roughly **0.5-1.5m tall**, similar footprint to the current
+  placeholders. Several are visible at once, receding toward the horizon.
+- **Poly budget: ≤150-200 triangles each.**
+- Origin at ground level (feet/base at local `y=0`) — I'll reposition
+  `environment_controller.gd`'s spawn code to match once you hand these
+  over (it currently assumes center-origin primitives, same situation the
+  enemy model was in before item 7).
+- These render via `MultiMeshInstance3D` (one instance per prop type, all
+  static - never rebuilt at runtime), same constraint as the crowd unit:
+  **all instances of one prop type share one material/texture**, no
+  per-instance texture variation without a shader change.
 
 ## Delivery format
 

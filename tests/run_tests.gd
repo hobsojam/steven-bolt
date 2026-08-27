@@ -8,6 +8,7 @@ const EnemyWaveRuntime := preload("res://scripts/enemy_wave_runtime.gd")
 const RivalCrowdRules := preload("res://scripts/rival_crowd_rules.gd")
 const RivalCrowdRuntime := preload("res://scripts/rival_crowd_runtime.gd")
 const MainScene := preload("res://scenes/main.tscn")
+const EnvironmentZones := preload("res://scripts/environment_zones.gd")
 
 var _failures: int = 0
 
@@ -43,6 +44,12 @@ func _initialize() -> void:
 	_test_entries_are_sorted_by_distance()
 	_test_entries_contain_a_partial_enemy_wave()
 	_test_entries_contain_a_horde_before_finish()
+	_test_environment_zones_are_contiguous_and_cover_the_level()
+	_test_zone_for_distance_clamps_before_the_first_zone()
+	_test_zone_for_distance_resolves_boundary_to_the_zone_that_starts_there()
+	_test_zone_for_distance_clamps_past_the_last_zone()
+	_test_prop_positions_for_zone_covers_the_full_span()
+	_test_prop_positions_for_zone_alternates_sides()
 	_test_shots_per_volley_scales_with_crowd_count()
 	_test_shots_per_volley_caps_at_max()
 	_test_crowd_front_edge_half_width_grows_with_crowd_count()
@@ -355,6 +362,67 @@ func _test_entries_contain_a_horde_before_finish() -> void:
 		LevelOneDefinition.length() - horde["distance"] >= 10.0,
 		"the horde has at least some runway before the finish line"
 	)
+
+
+func _test_environment_zones_are_contiguous_and_cover_the_level() -> void:
+	var zones: Array[Dictionary] = EnvironmentZones.zones()
+	_assert_eq(zones[0]["start_distance"], 0.0, "the first zone starts at the beginning")
+	_assert_true(
+		zones[zones.size() - 1]["end_distance"] >= LevelOneDefinition.length(),
+		"the last zone reaches at least the end of the level"
+	)
+	for i in range(zones.size() - 1):
+		_assert_eq(
+			zones[i]["end_distance"],
+			zones[i + 1]["start_distance"],
+			"consecutive zones share a boundary with no gap or overlap"
+		)
+
+
+func _test_zone_for_distance_clamps_before_the_first_zone() -> void:
+	var zones: Array[Dictionary] = EnvironmentZones.zones()
+	_assert_eq(
+		EnvironmentZones.zone_for_distance(-5.0, zones),
+		zones[0],
+		"a distance before the level start clamps to the first zone"
+	)
+
+
+func _test_zone_for_distance_resolves_boundary_to_the_zone_that_starts_there() -> void:
+	var zones: Array[Dictionary] = EnvironmentZones.zones()
+	var boundary: float = zones[0]["end_distance"]
+	_assert_eq(
+		EnvironmentZones.zone_for_distance(boundary, zones),
+		zones[1],
+		"a distance exactly on a boundary resolves to the zone starting there"
+	)
+
+
+func _test_zone_for_distance_clamps_past_the_last_zone() -> void:
+	var zones: Array[Dictionary] = EnvironmentZones.zones()
+	_assert_eq(
+		EnvironmentZones.zone_for_distance(zones[zones.size() - 1]["end_distance"] + 100.0, zones),
+		zones[zones.size() - 1],
+		"a distance past the level end clamps to the last zone"
+	)
+
+
+func _test_prop_positions_for_zone_covers_the_full_span() -> void:
+	var zone: Dictionary = {"start_distance": 0.0, "end_distance": 40.0, "prop_spacing": 8.0}
+	var positions: Array[Vector3] = EnvironmentZones.prop_positions_for_zone(zone, 5.0)
+	_assert_eq(positions.size(), 5, "a 40-unit zone at 8-unit spacing places 5 props")
+	for pos in positions:
+		_assert_true(
+			pos.z <= 0.0 and pos.z > -zone["end_distance"],
+			"every prop position falls within the zone's distance range"
+		)
+
+
+func _test_prop_positions_for_zone_alternates_sides() -> void:
+	var zone: Dictionary = {"start_distance": 0.0, "end_distance": 40.0, "prop_spacing": 8.0}
+	var positions: Array[Vector3] = EnvironmentZones.prop_positions_for_zone(zone, 5.0)
+	_assert_true(positions[0].x > 0.0, "the first prop is placed on the right side")
+	_assert_true(positions[1].x < 0.0, "the second prop alternates to the left side")
 
 
 func _test_shots_per_volley_scales_with_crowd_count() -> void:

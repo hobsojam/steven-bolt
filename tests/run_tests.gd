@@ -48,6 +48,8 @@ func _initialize() -> void:
 	_test_zone_for_distance_clamps_before_the_first_zone()
 	_test_zone_for_distance_resolves_boundary_to_the_zone_that_starts_there()
 	_test_zone_for_distance_clamps_past_the_last_zone()
+	_test_prop_positions_for_zone_covers_the_full_span()
+	_test_prop_positions_for_zone_alternates_sides()
 	_test_shots_per_volley_scales_with_crowd_count()
 	_test_shots_per_volley_caps_at_max()
 	_test_crowd_front_edge_half_width_grows_with_crowd_count()
@@ -403,6 +405,24 @@ func _test_zone_for_distance_clamps_past_the_last_zone() -> void:
 		zones[zones.size() - 1],
 		"a distance past the level end clamps to the last zone"
 	)
+
+
+func _test_prop_positions_for_zone_covers_the_full_span() -> void:
+	var zone: Dictionary = {"start_distance": 0.0, "end_distance": 40.0, "prop_spacing": 8.0}
+	var positions: Array[Vector3] = EnvironmentZones.prop_positions_for_zone(zone, 5.0)
+	_assert_eq(positions.size(), 5, "a 40-unit zone at 8-unit spacing places 5 props")
+	for pos in positions:
+		_assert_true(
+			pos.z <= 0.0 and pos.z > -zone["end_distance"],
+			"every prop position falls within the zone's distance range"
+		)
+
+
+func _test_prop_positions_for_zone_alternates_sides() -> void:
+	var zone: Dictionary = {"start_distance": 0.0, "end_distance": 40.0, "prop_spacing": 8.0}
+	var positions: Array[Vector3] = EnvironmentZones.prop_positions_for_zone(zone, 5.0)
+	_assert_true(positions[0].x > 0.0, "the first prop is placed on the right side")
+	_assert_true(positions[1].x < 0.0, "the second prop alternates to the left side")
 
 
 func _test_shots_per_volley_scales_with_crowd_count() -> void:

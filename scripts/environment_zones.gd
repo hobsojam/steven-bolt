@@ -58,3 +58,17 @@ static func zone_for_distance(distance: float, zones_list: Array[Dictionary]) ->
 		if distance < zone["end_distance"]:
 			return zone
 	return zones_list[zones_list.size() - 1]
+
+
+static func prop_positions_for_zone(zone: Dictionary, side_offset: float) -> Array[Vector3]:
+	# Alternates left/right every prop while marching forward through the
+	# zone's distance range, rather than two rigid parallel rows - reads as
+	# naturally scattered roadside scenery instead of a fence.
+	var positions: Array[Vector3] = []
+	var distance: float = zone["start_distance"]
+	var side: float = 1.0
+	while distance < zone["end_distance"]:
+		positions.append(Vector3(side * side_offset, 0.0, -distance))
+		side = -side
+		distance += zone["prop_spacing"]
+	return positions

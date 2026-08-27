@@ -1,4 +1,4 @@
-[gd_scene load_steps=17 format=3 uid="uid://c0n0scaffold01"]
+[gd_scene load_steps=18 format=3 uid="uid://c0n0scaffold01"]
 
 [ext_resource type="Script" path="res://scripts/run_controller.gd" id="1_run"]
 [ext_resource type="Script" path="res://scripts/crowd_controller.gd" id="2_crowd"]
@@ -8,6 +8,7 @@
 [ext_resource type="Texture2D" path="res://assets/textures/road_texture.png" id="6_road"]
 [ext_resource type="Theme" path="res://assets/themes/game_theme.tres" id="7_theme"]
 [ext_resource type="Script" path="res://scripts/feedback_audio.gd" id="8_audio"]
+[ext_resource type="Script" path="res://scripts/environment_controller.gd" id="9_env"]
 
 [sub_resource type="PlaneMesh" id="PlaneMesh_track"]
 size = Vector2(8, 180)
@@ -81,6 +82,9 @@ environment = SubResource("Environment_sunny")
 position = Vector3(0, 0, -87)
 mesh = SubResource("PlaneMesh_track")
 surface_material_override/0 = SubResource("StandardMaterial3D_track")
+
+[node name="EnvironmentController" type="Node3D" parent="."]
+script = ExtResource("9_env")
 
 [node name="CrowdController" type="Node3D" parent="."]
 script = ExtResource("2_crowd")

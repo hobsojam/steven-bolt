@@ -1,7 +1,14 @@
 extends Node3D
 
 const RunRules := preload("res://scripts/run_rules.gd")
+const Vfx := preload("res://scripts/vfx.gd")
 const BulletModel := preload("res://assets/models/bullet.glb")
+
+# Cadence for the "shredding line" - one spark burst per this many
+# seconds while the mass is losing units, so a fast attrition tick doesn't
+# spawn a burst every frame.
+const SHRED_INTERVAL := 0.06
+const TRACER_STRETCH := 3.0
 
 var runtime
 var _model: PackedScene
@@ -9,6 +16,8 @@ var _tint
 var _face_player: bool
 
 var _last_count: int = -1
+var _shred_seen_count: int = -1
+var _shred_cooldown: float = 0.0
 var _multimesh_instance: MultiMeshInstance3D
 var _bullet_container: Node3D
 
@@ -45,12 +54,37 @@ func _ready() -> void:
 	add_child(_bullet_container)
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	var count: int = runtime.rival_count
 	if count != _last_count:
 		_last_count = count
 		_rebuild(count)
 	_refresh_bullets()
+	_emit_shred(count, delta)
+
+
+func _emit_shred(count: int, delta: float) -> void:
+	_shred_cooldown = maxf(_shred_cooldown - delta, 0.0)
+	if _shred_seen_count < 0:
+		_shred_seen_count = count
+		return
+	if count >= _shred_seen_count:
+		return
+	var lost: int = _shred_seen_count - count
+	_shred_seen_count = count
+	if _shred_cooldown > 0.0:
+		return
+	_shred_cooldown = SHRED_INTERVAL
+	# The mass's layout starts at local z = 0 and extends back, so z = 0 is
+	# the face turned toward the player - where fire is landing.
+	var half_width: float = maxf(RunRules.crowd_front_edge_half_width(count), 0.4)
+	Vfx.spawn_burst(
+		self,
+		Vector3(randf_range(-half_width, half_width), 1.0, 0.0),
+		Vfx.KILL_COLOR,
+		clampi(lost * 3, 8, 26),
+		3.5
+	)
 
 
 func _refresh_bullets() -> void:
@@ -65,6 +99,7 @@ func _refresh_bullets() -> void:
 		# the parent's own offset subtracted back out to land at the
 		# intended world position instead of stacking on top of it.
 		model.position = Vector3(bullet["offset"], bullet["height"], -bullet["distance"] - position.z)
+		model.scale = Vector3(1.0, 1.0, TRACER_STRETCH)
 		_bullet_container.add_child(model)
 
 

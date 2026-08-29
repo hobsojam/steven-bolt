@@ -9,6 +9,16 @@ const BulletModel := preload("res://assets/models/bullet.glb")
 # axis turns them into tracer streaks instead of round dots.
 const TRACER_STRETCH := 3.0
 
+# Non-interactive extras clustered behind each real enemy so a 1-2 enemy
+# wave still reads as a group rather than a lone capsule. Parented to the
+# real enemy's node, so they scale away with it on death. Offsets are
+# behind (-z) and to the side, in local metres.
+const BACKING_OFFSETS: Array[Vector3] = [
+	Vector3(-0.55, 0.0, -0.65),
+	Vector3(0.6, 0.0, -0.8),
+	Vector3(0.05, 0.0, -1.3),
+]
+
 var runtime
 
 var _enemy_nodes: Array[Node3D] = []
@@ -56,6 +66,10 @@ func _play_death(index: int) -> void:
 func _spawn_enemy_visual(enemy: Dictionary) -> Node3D:
 	var model := EnemyModel.instantiate() as Node3D
 	model.position = Vector3(RunRules.lane_x(enemy["lane"]), 0.0, -enemy["distance"])
+	for offset in BACKING_OFFSETS:
+		var backer := EnemyModel.instantiate() as Node3D
+		backer.position = offset
+		model.add_child(backer)
 	add_child(model)
 	return model
 

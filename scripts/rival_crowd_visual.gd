@@ -14,6 +14,10 @@ var runtime
 var _model: PackedScene
 var _tint
 var _face_player: bool
+# A horde renders as a full-width mass receding toward the horizon
+# (RunRules.enemy_mass_layout); a plain rival crowd reuses the compact
+# player-crowd layout.
+var _is_mass: bool
 
 var _last_count: int = -1
 var _shred_seen_count: int = -1
@@ -22,11 +26,14 @@ var _multimesh_instance: MultiMeshInstance3D
 var _bullet_container: Node3D
 
 
-func _init(crowd_runtime, model: PackedScene, tint, face_player: bool) -> void:
+func _init(
+	crowd_runtime, model: PackedScene, tint, face_player: bool, mass: bool = false
+) -> void:
 	runtime = crowd_runtime
 	_model = model
 	_tint = tint
 	_face_player = face_player
+	_is_mass = mass
 
 
 func _ready() -> void:
@@ -75,9 +82,9 @@ func _emit_shred(count: int, delta: float) -> void:
 	if _shred_cooldown > 0.0:
 		return
 	_shred_cooldown = SHRED_INTERVAL
-	# The mass's layout starts at local z = 0 and extends back, so z = 0 is
-	# the face turned toward the player - where fire is landing.
-	var half_width: float = maxf(RunRules.crowd_front_edge_half_width(count), 0.4)
+	# Front rank sits at local z = 0 (the face turned toward the player),
+	# where fire is landing.
+	var half_width: float = maxf(_front_half_width(count), 0.4)
 	Vfx.spawn_burst(
 		self,
 		Vector3(randf_range(-half_width, half_width), 1.0, 0.0),
@@ -103,8 +110,18 @@ func _refresh_bullets() -> void:
 		_bullet_container.add_child(model)
 
 
+func _front_half_width(count: int) -> float:
+	if _is_mass:
+		return RunRules.ENEMY_MASS_WIDTH / 2.0
+	return RunRules.crowd_front_edge_half_width(count)
+
+
 func _rebuild(count: int) -> void:
-	var transforms: Array[Transform3D] = RunRules.build_multimesh_transforms(count)
+	var transforms: Array[Transform3D] = (
+		RunRules.build_enemy_mass_transforms(count)
+		if _is_mass
+		else RunRules.build_multimesh_transforms(count)
+	)
 	_multimesh_instance.multimesh.instance_count = transforms.size()
 	if _face_player:
 		# Face the player's crowd (the model's own forward is -Z, matching

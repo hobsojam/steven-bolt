@@ -107,7 +107,7 @@ script = ExtResource("3_cam")
 [node name="SunLight" type="DirectionalLight3D" parent="."]
 rotation_degrees = Vector3(-48, 28, 0)
 light_color = Color(1, 0.972549, 0.917647, 1)
-light_energy = 0.86
+light_energy = 1.05
 shadow_enabled = true
 
 [node name="Hud" type="CanvasLayer" parent="."]

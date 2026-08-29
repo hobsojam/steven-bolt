@@ -138,7 +138,9 @@ func _flush_damage_feedback() -> void:
 	_pending_damage = 0
 	_damage_feedback_cooldown = DAMAGE_FEEDBACK_INTERVAL
 	_audio.play_feedback(&"damage")
-	_show_feedback("CROWD  -%d" % amount, LOSS_COLOR, 0.16)
+	# A snappier full-screen hit than the other feedback flashes - a breach
+	# is the one event that costs the player units without their input.
+	_show_feedback("CROWD  -%d" % amount, LOSS_COLOR, 0.24)
 	_pulse_count(LOSS_COLOR)
 
 

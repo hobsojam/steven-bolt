@@ -264,7 +264,8 @@ func _spawn_level_visuals() -> void:
 					_active_horde,
 					EnemyModel,
 					null,
-					true
+					true,
+					true  # render as a full-width mass, not the compact crowd layout
 				)
 				_active_horde_engage_distance = entry["distance"]
 				_active_horde_visual.position.z = -entry["distance"]

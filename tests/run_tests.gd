@@ -64,6 +64,12 @@ func _initialize() -> void:
 	_test_rival_crowd_resolves_to_absolute_difference()
 	_test_rival_crowd_tick_does_nothing_once_defeated()
 	_test_build_multimesh_transforms_matches_crowd_layout_count()
+	_test_enemy_mass_layout_empty_for_zero()
+	_test_enemy_mass_layout_caps_at_max()
+	_test_enemy_mass_layout_spans_full_track_width()
+	_test_enemy_mass_layout_recedes_toward_horizon()
+	_test_enemy_mass_layout_is_deterministic()
+	_test_build_enemy_mass_transforms_matches_layout_count()
 	_test_apply_shot_damage_reduces_and_clamps_at_zero()
 	_test_apply_shot_damage_is_cooldown_gated()
 	_test_apply_shot_damage_spawns_one_bullet_per_shot()
@@ -575,6 +581,60 @@ func _test_build_multimesh_transforms_matches_crowd_layout_count() -> void:
 		transforms.size(),
 		RunRules.crowd_layout(40).size(),
 		"multimesh transforms match crowd_layout's instance count"
+	)
+
+
+func _test_enemy_mass_layout_empty_for_zero() -> void:
+	_assert_eq(RunRules.enemy_mass_layout(0).size(), 0, "a zero-count horde renders no instances")
+
+
+func _test_enemy_mass_layout_caps_at_max() -> void:
+	_assert_eq(
+		RunRules.enemy_mass_layout(100000).size(),
+		RunRules.MAX_ENEMY_MASS_UNITS,
+		"the enemy mass instance count caps at MAX_ENEMY_MASS_UNITS"
+	)
+
+
+func _test_enemy_mass_layout_spans_full_track_width() -> void:
+	var max_abs_x: float = 0.0
+	for pos in RunRules.enemy_mass_layout(RunRules.MAX_ENEMY_MASS_UNITS):
+		max_abs_x = maxf(max_abs_x, absf(pos.x))
+	_assert_true(
+		max_abs_x > RunRules.ENEMY_MASS_WIDTH / 2.0 - RunRules.ENEMY_MASS_UNIT_SPACING,
+		"a full horde spreads its outer units out to near the track edge"
+	)
+	_assert_true(
+		max_abs_x <= RunRules.ENEMY_MASS_WIDTH / 2.0 + RunRules.ENEMY_MASS_UNIT_SPACING,
+		"jitter never throws a unit meaningfully past the intended mass width"
+	)
+
+
+func _test_enemy_mass_layout_recedes_toward_horizon() -> void:
+	var min_z: float = 0.0
+	for pos in RunRules.enemy_mass_layout(RunRules.MAX_ENEMY_MASS_UNITS):
+		min_z = minf(min_z, pos.z)
+	_assert_true(
+		min_z < -RunRules.CROWD_MAX_DEPTH,
+		"the enemy mass is far deeper than the compact player-crowd layout - a wall, not a blob"
+	)
+
+
+func _test_enemy_mass_layout_is_deterministic() -> void:
+	var count: int = 120
+	var first: Array[Vector3] = RunRules.enemy_mass_layout(count)
+	var second: Array[Vector3] = RunRules.enemy_mass_layout(count)
+	_assert_true(
+		first == second,
+		"the layout (including its jitter) is identical across calls, so it stays testable"
+	)
+
+
+func _test_build_enemy_mass_transforms_matches_layout_count() -> void:
+	_assert_eq(
+		RunRules.build_enemy_mass_transforms(180).size(),
+		RunRules.enemy_mass_layout(180).size(),
+		"enemy mass transforms match enemy_mass_layout's instance count"
 	)
 
 

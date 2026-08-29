@@ -13,6 +13,15 @@ const CROWD_MAX_WIDTH := 6.0
 const CROWD_MAX_DEPTH := 3.0
 const CROWD_SCALE_PER_DOUBLING := 0.85
 
+# Enemy hordes render as their own dense mass rather than reusing the
+# player crowd's compact, camera-tuned layout: they sit ahead of the
+# player, so filling the track width and receding toward the horizon is
+# the point. Full-size units (no count-based shrink), a higher on-screen
+# cap than the player crowd, and rows that extend away from the player.
+const MAX_ENEMY_MASS_UNITS := 300
+const ENEMY_MASS_WIDTH := 7.0
+const ENEMY_MASS_UNIT_SPACING := 0.62
+
 
 static func lane_x(lane_index: int) -> float:
 	return (lane_index - (LANE_COUNT - 1) / 2.0) * LANE_SPACING
@@ -99,3 +108,38 @@ static func crowd_front_edge_half_width(count: int) -> float:
 		if pos.z == 0.0:
 			half_width = maxf(half_width, absf(pos.x))
 	return half_width
+
+
+static func enemy_mass_layout(count: int) -> Array[Vector3]:
+	var rendered: int = clampi(count, 0, MAX_ENEMY_MASS_UNITS)
+	var positions: Array[Vector3] = []
+	if rendered <= 0:
+		return positions
+	var columns: int = mini(maxi(1, int(ENEMY_MASS_WIDTH / ENEMY_MASS_UNIT_SPACING)), rendered)
+	for i in rendered:
+		var col: int = i % columns
+		var row: int = i / columns
+		var x: float = (col - (columns - 1) / 2.0) * ENEMY_MASS_UNIT_SPACING
+		# Rows recede away from the player toward the horizon, so the front
+		# rank sits at local z = 0 - where the crowd's fire lands.
+		var z: float = -row * ENEMY_MASS_UNIT_SPACING
+		# Deterministic per-index jitter (same result every call, so this
+		# stays headlessly testable) breaks up the grid into an organic mass.
+		# Amplitude stays under half a spacing so units never swap cells.
+		x += (_index_hash(i, 127.1) - 0.5) * ENEMY_MASS_UNIT_SPACING * 0.55
+		z += (_index_hash(i, 311.7) - 0.5) * ENEMY_MASS_UNIT_SPACING * 0.55
+		positions.append(Vector3(x, 0.0, z))
+	return positions
+
+
+static func build_enemy_mass_transforms(count: int) -> Array[Transform3D]:
+	var transforms: Array[Transform3D] = []
+	for pos in enemy_mass_layout(count):
+		transforms.append(Transform3D(Basis.IDENTITY, pos))
+	return transforms
+
+
+static func _index_hash(index: int, salt: float) -> float:
+	# Cheap deterministic hash -> [0, 1). Not statistically great, but stable
+	# and dependency-free, which is all the mass jitter needs.
+	return fmod(absf(sin(float(index) * salt) * 43758.5453), 1.0)

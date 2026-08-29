@@ -7,6 +7,9 @@ const CombatRules := preload("res://scripts/combat_rules.gd")
 const EnemyWaveRuntime := preload("res://scripts/enemy_wave_runtime.gd")
 const RivalCrowdRules := preload("res://scripts/rival_crowd_rules.gd")
 const RivalCrowdRuntime := preload("res://scripts/rival_crowd_runtime.gd")
+const EnemyWaveEncounter := preload("res://scripts/enemy_wave_encounter.gd")
+const RivalCrowdEncounter := preload("res://scripts/rival_crowd_encounter.gd")
+const HordeEncounter := preload("res://scripts/horde_encounter.gd")
 const MainScene := preload("res://scenes/main.tscn")
 const EnvironmentZones := preload("res://scripts/environment_zones.gd")
 
@@ -76,6 +79,11 @@ func _initialize() -> void:
 	_test_apply_shot_damage_spawns_only_as_many_bullets_as_damage_applied()
 	_test_advance_bullets_moves_and_despawns_at_target()
 	_test_apply_shot_damage_then_tick_carries_count_across_phases()
+	_test_enemy_wave_encounter_shoots_kills_and_completes()
+	_test_enemy_wave_encounter_charges_breach_for_crossed_enemy()
+	_test_horde_encounter_shoots_before_contact_then_completes()
+	_test_horde_encounter_contact_phase_charges_breach()
+	_test_rival_crowd_encounter_engages_only_after_its_distance()
 
 	if _failures == 0:
 		print("All tests passed")
@@ -704,6 +712,103 @@ func _test_apply_shot_damage_then_tick_carries_count_across_phases() -> void:
 		150 - 60,
 		"the crowd survives the contact phase using whatever the shooting phase left behind"
 	)
+
+
+func _test_enemy_wave_encounter_shoots_kills_and_completes() -> void:
+	var encounter := EnemyWaveEncounter.new({"enemies": [{"lane": 0, "distance": 10.0, "hp": 1}]})
+	_assert_true(not encounter.is_complete(), "a fresh wave with a live enemy is not complete")
+	var ctx := {"crowd_count": 50, "current_lane": 0, "distance_traveled": 0.0, "crowd_z": 0.0}
+	var result: Dictionary = encounter.update(1.0, ctx)
+	_assert_true(
+		_feedback_amount(result, &"shot") >= 1,
+		"the wave encounter fires a volley and reports it as a shot feedback event"
+	)
+	_assert_eq(
+		_feedback_amount(result, &"hit"), 1, "the volley kills the lone in-lane enemy in one update"
+	)
+	_assert_eq(result["breach_cost"], 0, "a shot-down enemy is never charged as a breach")
+	_assert_true(encounter.is_complete(), "the wave encounter is complete once every enemy is dead")
+	encounter.cleanup()
+	encounter.cleanup()
+
+
+func _test_enemy_wave_encounter_charges_breach_for_crossed_enemy() -> void:
+	var encounter := EnemyWaveEncounter.new({"enemies": [{"lane": 3, "distance": 5.0, "hp": 5}]})
+	# Crowd sits in lane 0, so nothing shoots the lane-3 enemy before its
+	# distance is crossed at distance_traveled 6.
+	var ctx := {"crowd_count": 20, "current_lane": 0, "distance_traveled": 6.0, "crowd_z": -6.0}
+	var result: Dictionary = encounter.update(0.1, ctx)
+	_assert_eq(
+		result["breach_cost"],
+		CombatRules.ENEMY_BREACH_COST,
+		"an un-killed enemy whose distance is crossed charges exactly one breach cost"
+	)
+	_assert_true(
+		encounter.is_complete(), "the wave encounter clears once its only enemy has breached"
+	)
+
+
+func _test_horde_encounter_shoots_before_contact_then_completes() -> void:
+	var encounter := HordeEncounter.new({"count": 6, "distance": 100.0})
+	var far: Dictionary = encounter.update(
+		1.0, {"crowd_count": 50, "current_lane": 2, "distance_traveled": 60.0, "crowd_z": -60.0}
+	)
+	_assert_true(
+		far["feedback"].is_empty() and far["breach_cost"] == 0,
+		"a horde further than its shoot range away is inert"
+	)
+	_assert_true(not encounter.is_complete(), "an untouched horde is not complete")
+	var ctx := {"crowd_count": 50, "current_lane": 2, "distance_traveled": 85.0, "crowd_z": -85.0}
+	var completed := false
+	for _i in 20:
+		var result: Dictionary = encounter.update(1.0, ctx)
+		_assert_eq(result["breach_cost"], 0, "the horde shooting phase never charges a breach")
+		if encounter.is_complete():
+			completed = true
+			break
+	_assert_true(completed, "a small horde is shot down before contact and completes")
+
+
+func _test_horde_encounter_contact_phase_charges_breach() -> void:
+	var encounter := HordeEncounter.new({"count": 1000, "distance": 100.0})
+	# Contact reached (distance_traveled >= engage distance) with the horde
+	# far too large to have been shot down first.
+	var ctx := {"crowd_count": 200, "current_lane": 2, "distance_traveled": 100.0, "crowd_z": -100.0}
+	var total_breach := 0
+	for _i in 5:
+		total_breach += encounter.update(0.1, ctx)["breach_cost"]
+	_assert_true(total_breach > 0, "a horde that survives to contact bleeds the crowd by attrition")
+
+
+func _test_rival_crowd_encounter_engages_only_after_its_distance() -> void:
+	var encounter := RivalCrowdEncounter.new({"count": 30, "distance": 50.0})
+	var before: Dictionary = encounter.update(
+		1.0, {"crowd_count": 100, "current_lane": 2, "distance_traveled": 20.0, "crowd_z": -20.0}
+	)
+	_assert_true(
+		before["feedback"].is_empty() and before["breach_cost"] == 0,
+		"a rival crowd is inert before the crowd reaches its engage distance"
+	)
+	_assert_true(not encounter.is_complete(), "an un-engaged rival crowd is not complete")
+	var ctx := {"crowd_count": 100, "current_lane": 2, "distance_traveled": 55.0, "crowd_z": -55.0}
+	var total_breach := 0
+	var completed := false
+	for _i in 200:
+		total_breach += encounter.update(0.1, ctx)["breach_cost"]
+		if encounter.is_complete():
+			completed = true
+			break
+	_assert_true(completed, "the rival crowd resolves by attrition once engaged")
+	_assert_eq(
+		total_breach, 30, "the crowd's total losses equal the rival crowd's starting count (1-for-1)"
+	)
+
+
+func _feedback_amount(result: Dictionary, kind: StringName) -> int:
+	for event in result["feedback"]:
+		if event[0] == kind:
+			return event[1]
+	return -1
 
 
 func _assert_true(condition: bool, message: String) -> void:

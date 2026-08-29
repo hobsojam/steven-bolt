@@ -72,6 +72,12 @@ there is no packaged-build command to run.
   `crowd_count`/`current_lane` and applies gate/toll math. Keep pure math
   (gate application, threshold checks, layout math) in plain functions so
   `tests/run_tests.gd` can exercise it headlessly.
+- Multi-frame level entries (enemy waves, hordes, rival crowds) are
+  "encounters" behind the lifecycle in `scripts/encounter.gd`, registered
+  by kind in `scripts/encounter_factory.gd`. `run_controller.gd` only
+  spawns them and applies the feedback/breach result they return; adding a
+  type needs no controller change. See `encounter.gd`'s header for the
+  extension checklist.
 
 ## Keep Docs And Commits Portable
 

@@ -10,32 +10,20 @@ const LevelOneDefinition := preload("res://scripts/level_one_definition.gd")
 const GateRowScript := preload("res://scripts/gate_row.gd")
 const TollWallScript := preload("res://scripts/toll_wall.gd")
 const PickupScript := preload("res://scripts/pickup.gd")
-const CombatRules := preload("res://scripts/combat_rules.gd")
-const EnemyWaveRuntimeScript := preload("res://scripts/enemy_wave_runtime.gd")
-const EnemyWaveVisualScript := preload("res://scripts/enemy_wave_visual.gd")
-const RivalCrowdRuntimeScript := preload("res://scripts/rival_crowd_runtime.gd")
-const RivalCrowdVisualScript := preload("res://scripts/rival_crowd_visual.gd")
-const CrowdUnitModel := preload("res://assets/models/crowd_unit.glb")
-const EnemyModel := preload("res://assets/models/enemy.glb")
-
-# How far ahead of a horde's engage distance shooting can start (a horde
-# would otherwise sit in firing range for the crowd's entire preceding run,
-# trivializing even a large one - see run_controller.gd's horde design doc).
-const HORDE_SHOOT_RANGE := 20.0
+const EncounterFactory := preload("res://scripts/encounter_factory.gd")
 
 var distance_traveled: float = 0.0
 var _elapsed_time: float = 0.0
 var _state: int = RunState.START
 var _level_entries: Array[Dictionary] = []
 var _next_entry_index: int = 0
-var _active_wave = null
-var _active_wave_visual: Node3D = null
-var _active_rival = null
-var _active_rival_visual: Node3D = null
-var _active_rival_engage_distance: float = 0.0
-var _active_horde = null
-var _active_horde_visual: Node3D = null
-var _active_horde_engage_distance: float = 0.0
+# Encounters (enemy waves, hordes, rival crowds) are level entries that
+# live and update over many frames rather than resolving instantly when
+# crossed. Each one hides its own runtime + visual + phase logic behind
+# encounter.gd's lifecycle; this controller only spawns them, forwards a
+# per-frame context, and applies the feedback / breach result they hand
+# back. See encounter.gd for how to add a new encounter type.
+var _encounters: Array = []
 
 @onready var _crowd = $CrowdController
 
@@ -58,12 +46,7 @@ func _process(delta: float) -> void:
 	distance_traveled += RunRules.current_speed(_elapsed_time) * delta
 	_crowd.position.z = -distance_traveled
 	_resolve_pending_entries()
-	if _active_wave:
-		_update_combat(delta)
-	if _active_rival:
-		_update_rival_battle(delta)
-	if _active_horde:
-		_update_horde(delta)
+	_update_encounters(delta)
 	if _state == RunState.RUNNING and distance_traveled >= LevelOneDefinition.length():
 		_emit_feedback(&"complete")
 		_set_state(RunState.FINISHED)
@@ -133,102 +116,47 @@ func _resolve_entry(entry: Dictionary) -> void:
 					_emit_feedback(&"pickup_loss", -difference)
 
 
-func _update_combat(delta: float) -> void:
-	var shots: int = CombatRules.shots_per_volley(_crowd.crowd_count)
-	var bullets_before: int = _active_wave.bullets.size()
-	_active_wave.try_fire(
-		_crowd.current_lane, distance_traveled, shots, _crowd.crowd_count, delta
-	)
-	if _active_wave.bullets.size() > bullets_before:
-		_emit_feedback(&"shot", _active_wave.bullets.size() - bullets_before)
-	_active_wave.advance_bullets(delta)
-	var killed: Array[int] = _active_wave.resolve_hits()
-	if not killed.is_empty():
-		_emit_feedback(&"hit", killed.size())
-	var breach_cost: int = _active_wave.resolve_breaches(distance_traveled)
-	if breach_cost > 0:
-		_crowd.apply_breach(breach_cost)
-		if _crowd.crowd_count <= 0:
-			_emit_feedback(&"failure", breach_cost)
-			_set_state(RunState.GAME_OVER)
-		else:
-			_emit_feedback(&"damage", breach_cost)
-	if _active_wave.is_cleared():
-		_active_wave_visual.queue_free()
-		_active_wave = null
-		_active_wave_visual = null
-
-
-func _update_rival_battle(delta: float) -> void:
-	if distance_traveled < _active_rival_engage_distance:
+func _update_encounters(delta: float) -> void:
+	if _encounters.is_empty():
 		return
-	# Motion never stops elsewhere in this game, so once engaged the rival
-	# visual tracks the crowd's own Z every frame instead of staying at its
-	# spawned position - "crowds mashed together fighting" rather than the
-	# crowd visibly running past a stationary rival mid-battle.
-	_active_rival_visual.position.z = _crowd.position.z
-	var loss: int = _active_rival.tick(delta, _crowd.crowd_count)
-	if loss > 0:
-		_crowd.apply_breach(loss)
-		if _crowd.crowd_count <= 0:
-			_emit_feedback(&"failure", loss)
-			_set_state(RunState.GAME_OVER)
+	var context := {
+		"crowd_count": _crowd.crowd_count,
+		"current_lane": _crowd.current_lane,
+		"distance_traveled": distance_traveled,
+		"crowd_z": _crowd.position.z,
+	}
+	var still_active: Array = []
+	for encounter in _encounters:
+		var result: Dictionary = encounter.update(delta, context)
+		for event in result["feedback"]:
+			_emit_feedback(event[0], event[1])
+		var breach_cost: int = result["breach_cost"]
+		if breach_cost > 0:
+			_crowd.apply_breach(breach_cost)
+			if _crowd.crowd_count <= 0:
+				_emit_feedback(&"failure", breach_cost)
+				_set_state(RunState.GAME_OVER)
+			else:
+				_emit_feedback(&"damage", breach_cost)
+		if encounter.is_complete():
+			encounter.cleanup()
 		else:
-			_emit_feedback(&"damage", loss)
-	if _active_rival.is_defeated():
-		_active_rival_visual.queue_free()
-		_active_rival = null
-		_active_rival_visual = null
-
-
-func _update_horde(delta: float) -> void:
-	var distance_to_horde: float = _active_horde_engage_distance - distance_traveled
-	if distance_to_horde > HORDE_SHOOT_RANGE:
-		# Not yet in range: the horde sits at its spawned position, visible
-		# from a distance (like every other pre-spawned encounter) but not
-		# yet interactable.
-		return
-	if distance_traveled < _active_horde_engage_distance:
-		# Approaching but not yet in contact: shoot it down. A clean kill
-		# here costs the player nothing, same reward as clearing an
-		# enemy_wave before it breaches.
-		var shots: int = CombatRules.shots_per_volley(_crowd.crowd_count)
-		var applied_damage: int = _active_horde.apply_shot_damage(
-			delta, shots, distance_traveled, _crowd.crowd_count
-		)
-		if applied_damage > 0:
-			_emit_feedback(&"shot", applied_damage)
-		_active_horde.advance_bullets(delta, _active_horde_engage_distance)
-		if _active_horde.is_defeated():
-			_emit_feedback(&"hit", 1)
-			_active_horde_visual.queue_free()
-			_active_horde = null
-			_active_horde_visual = null
-		return
-	# Contact reached with survivors left: identical to _update_rival_battle's
-	# mutual attrition, since apply_shot_damage() and tick() share the same
-	# rival_count and tick() doesn't care how that count got where it is.
-	# Any bullet still mid-flight from the instant contact was reached loses
-	# its narrative meaning (the horde it was headed for is right there now)
-	# so it's dropped rather than animated the rest of the way in.
-	_active_horde.bullets.clear()
-	_active_horde_visual.position.z = _crowd.position.z
-	var loss: int = _active_horde.tick(delta, _crowd.crowd_count)
-	if loss > 0:
-		_crowd.apply_breach(loss)
-		if _crowd.crowd_count <= 0:
-			_emit_feedback(&"failure", loss)
-			_set_state(RunState.GAME_OVER)
-		else:
-			_emit_feedback(&"damage", loss)
-	if _active_horde.is_defeated():
-		_active_horde_visual.queue_free()
-		_active_horde = null
-		_active_horde_visual = null
+			still_active.append(encounter)
+	_encounters = still_active
 
 
 func _spawn_level_visuals() -> void:
 	for entry in _level_entries:
+		if EncounterFactory.is_encounter(entry["kind"]):
+			# Unlike gate_row / toll_wall / pickup (resolved once, instantly,
+			# when crossed), an encounter exists and is simulated from level
+			# start - same as gates being visible from a distance via the
+			# chase camera's lookahead, rather than popping in right before
+			# the crowd reaches it.
+			var encounter = EncounterFactory.create(entry)
+			encounter.spawn(self)
+			_encounters.append(encounter)
+			continue
 		var visual
 		match entry["kind"]:
 			"gate_row":
@@ -237,39 +165,6 @@ func _spawn_level_visuals() -> void:
 				visual = TollWallScript.new()
 			"pickup":
 				visual = PickupScript.new()
-			"enemy_wave":
-				# Unlike gate_row/toll_wall/pickup (resolved once, instantly,
-				# when crossed), an enemy wave exists and is simulated from
-				# level start - same as gates being visible from a distance
-				# via the chase camera's lookahead, rather than popping in
-				# right before the crowd reaches it. _update_combat() runs
-				# every frame in _process() while _active_wave is set.
-				_active_wave = EnemyWaveRuntimeScript.new(entry["enemies"])
-				_active_wave_visual = EnemyWaveVisualScript.new(_active_wave)
-				add_child(_active_wave_visual)
-			"rival_crowd":
-				_active_rival = RivalCrowdRuntimeScript.new(entry["count"])
-				_active_rival_visual = RivalCrowdVisualScript.new(
-					_active_rival,
-					CrowdUnitModel,
-					Color("3a6ea5").srgb_to_linear(),
-					true
-				)
-				_active_rival_engage_distance = entry["distance"]
-				_active_rival_visual.position.z = -entry["distance"]
-				add_child(_active_rival_visual)
-			"horde":
-				_active_horde = RivalCrowdRuntimeScript.new(entry["count"])
-				_active_horde_visual = RivalCrowdVisualScript.new(
-					_active_horde,
-					EnemyModel,
-					null,
-					true,
-					true  # render as a full-width mass, not the compact crowd layout
-				)
-				_active_horde_engage_distance = entry["distance"]
-				_active_horde_visual.position.z = -entry["distance"]
-				add_child(_active_horde_visual)
 		if visual:
 			add_child(visual)
 			visual.setup(entry)

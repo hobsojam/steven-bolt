@@ -1,60 +1,171 @@
 # Steven Bolt — Crowd Runner Game Spec
 
+Design intent and a description of the current build. The active backlog
+lives in **GitHub Issues**, not here — this document describes how the
+game is meant to work and what is deliberately not built yet, not a task
+list.
+
 ## Concept
 
-A forward-auto-running "crowd" game in the Crowd City / Count Masters / Join Clash lineage. The player controls a growing/shrinking mob of followers that runs continuously down a track. The player's only input is steering left/right across a set of lanes. Skill and strategy come from choosing which math gates to run through and timing your crowd size against numeric obstacles.
+A forward-auto-running "crowd" game in the Crowd City / Count Masters /
+Join Clash lineage. The player steers a growing/shrinking mob of
+followers that runs continuously down a track. The only input is steering
+left/right across a set of lanes. Skill comes from reading gate rows,
+managing crowd size against numeric obstacles, and clearing the combat
+encounters without bleeding too much crowd.
 
-This is a **separate project from sand-walker**, not a reskin of it — the core loop, camera, and input model are all different. See "Relationship to sand-walker" below.
+This is a **separate project from sand-walker** — the core loop, camera,
+and input model are all different. See "Relationship to sand-walker".
 
-## Core loop
+## What's built
 
-1. **Auto-run forward.** The player character (and its crowd) moves down the track at a constant (or gradually increasing) speed with no manual forward/stop control.
-2. **Steer.** Player drags/swipes horizontally to shift the crowd's lane position. This is the only input.
-3. **Pass through gates.** Paired or tripled gates span the track width; each gate applies a math op to crowd count (`+N`, `−N`, `×N`, `÷N`). The player picks a lane and gets that gate's effect — the other gates on the same row are foregone.
-4. **Clear numeric obstacles.** A wall/barrier displays a required threshold (e.g. `600`). If crowd count ≥ threshold, the crowd bursts through (optionally consuming the threshold amount as a toll). If count < threshold, the run ends (or the obstacle is impassable and forces a detour, depending on level design).
-5. **Fight rival crowds (optional, v2+).** Two crowds collide and resolve 1-for-1 (or weighted) elimination over a short contact segment; survivors carry on.
-6. **Finish line.** Remaining crowd count converts to score / currency / stars.
+The playable game today (`scenes/main.tscn`, one hand-authored level):
+
+- True 3D (`Node3D`), Godot 4.7, GL Compatibility renderer, 480×854
+  portrait viewport.
+- Auto-run forward; run speed ramps from `RUN_SPEED` to `MAX_RUN_SPEED`
+  over the run. 5 fixed lanes at 1.6 m spacing.
+- Steering by `A`/`D`, arrow keys, mouse drag, or touch swipe. `Enter`
+  starts the run and restarts after it ends.
+- Run states: `START` → `RUNNING` → `GAME_OVER` or `FINISHED`.
+- `+N` / `−N` gate rows, one value per lane; crowd count clamps at 0.
+- Toll wall: passable only if `crowd_count >= threshold`, and consumes
+  `threshold` units on the way through.
+- Pickup trails: a run of `+N` markers down one lane, collected only
+  while the crowd is in that lane.
+- Enemy waves: stationary enemies with HP that the crowd auto-fires on as
+  it approaches. Volley size scales with crowd count. An enemy still
+  alive when the crowd reaches its position charges a fixed breach cost.
+- Horde: a full-track enemy mass with two phases — a ranged shoot-down as
+  the crowd approaches (a clean kill here is free), then, for whatever
+  survives, mutual attrition on contact that costs the crowd the horde's
+  remaining count.
+- Fail state: `crowd_count` reaches 0 (gate underflow, enemy breach,
+  horde contact, or a failed toll wall).
+- Real low-poly `.glb` art for every element (crowd unit, enemy, gates,
+  toll wall, bullet, pickup marker), a road texture, a procedural sky
+  with four per-distance "mood" zones, an HUD theme, procedurally
+  synthesized event SFX, and a combat/gate juice pass (spark bursts,
+  muzzle flashes, tracer bullets, gate punch, floating numbers, camera
+  punch/shake, a blob contact shadow). Placeholder primitive roadside
+  props still stand in for real scenery — see `ART_SPEC.md` item 10.
 
 ## Systems detail
 
 ### Crowd representation
 - Player state is a single integer: `crowd_count`.
-- Rendered units are capped for performance (e.g. draw at most ~150 instanced units regardless of true count) with a label overlay showing the real number once it exceeds what's legible on-screen.
-- Crowd visual width scales roughly with `sqrt(crowd_count)`, clamped to track width; excess units stack in depth (rows) rather than overflowing sideways.
+- Rendered units are capped (`RunRules.MAX_RENDERED_UNITS`, currently 150)
+  and drawn through one `MultiMeshInstance3D`; the HUD always shows the
+  true integer count.
+- Crowd footprint grows front-to-back from a roughly square base, only
+  widening toward the track edges once depth would exceed the cap, and
+  individual units shrink as the count climbs so a large crowd stays
+  on-screen.
 
 ### Lanes
-- 5–7 fixed lane slots (wider than sand-walker's 3, since gate rows need room for multiple simultaneous choices and the crowd itself has visual width).
-- Crowd's centroid lane position is what determines which gate/obstacle segment it hits; individual follower sprites just flock loosely around that centroid.
+- 5 fixed lane slots. The crowd's lane is snapped on input (a gate can
+  never resolve against a lane the crowd hasn't visibly reached); only a
+  small within-lane "kick" is animated for feel.
 
 ### Gates
-- Appear in rows of 2–4 across the lanes, each lane showing a different value/op.
-- Types for v1: `+N`, `−N`.
-- Types for v2+: `×N`, `÷N`, `%` (multiply is the highest-value/highest-risk since it compounds).
-- Gate values scale with expected crowd size at that point in the level so choices stay meaningful (a `+5` gate is a trap once crowd count is in the thousands).
+- Rows of 5, one value per lane. Types: `+N`, `−N`.
+- Gate values are hand-tuned per row against the crowd size expected at
+  that point in the level, so choices stay meaningful.
+- Design intent, not built: `×N` / `÷N` (multiply is the
+  highest-value/highest-risk since it compounds).
 
 ### Obstacles
-- A wall with a visible required count. Two flavors:
-  - **Toll wall:** passable if `crowd_count >= threshold`; consumes `threshold` units on pass.
-  - **Checkpoint wall:** passable if `crowd_count >= threshold`; does not consume units (pure gate-check, tests whether prior gate choices were good).
-- Failing a wall ends the run (hypercasual-standard fail state) — no partial credit.
+- **Toll wall:** passable if `crowd_count >= threshold`; consumes
+  `threshold` units. Failing it ends the run.
+- Design intent, not built: a **checkpoint wall** that gates on the same
+  threshold but consumes nothing — a pure test of prior gate choices.
 
-### Rival crowd battles (v2+)
-- Enemy crowd occupies the lane(s) ahead; on contact, both sides lose units at a fixed rate per tick until one hits zero.
-- Winner's remaining count continues; if the player's crowd hits zero, run ends.
+### Enemy waves and shooting
+- An enemy wave is a set of stationary enemies, each with a lane,
+  distance, and HP, spawned and simulated from the start of the run (like
+  gates, visible from a distance — not a pop-in).
+- The crowd auto-fires at the nearest live enemy in its lane on a fixed
+  cooldown. Volley size scales with crowd count up to a cap. Bullets
+  travel and resolve against whichever enemy is nearest in their lane
+  when they land.
+- An enemy still alive when the crowd crosses its distance breaches for a
+  fixed cost per head, regardless of the crowd's own lane. Clearing the
+  wave first costs nothing.
 
-### Failure state
-- `crowd_count` reaches 0 at any point (gate underflow, lost battle, or failed toll wall).
+### Horde and mass attrition
+- The horde is a large enemy crowd spanning the whole track — no lane
+  dodges it.
+- **Ranged phase:** from a set distance ahead of the engage point up to
+  contact, auto-fire reduces the horde one-sidedly (same fire cadence as
+  a wave). A horde shot down before contact costs nothing.
+- **Contact phase:** any survivors resolve by attrition — both sides lose
+  units at a fixed rate per tick until one hits zero, converging on the
+  same result an instant 1-for-1 subtraction would give
+  (`survivors = |crowd − horde|`), spread over time for pacing.
+- The attrition system (`rival_crowd_runtime.gd` / `rival_crowd_rules.gd`)
+  is shared with a standalone `rival_crowd` encounter kind. That kind is
+  wired end to end but no level entry uses it yet — a rival-crowd clash
+  as its own level beat is design intent, not built.
 
 ### Level structure
-- Sequence of gate-rows and obstacles authored by hand (not procedural, for v1) so difficulty and "fairness" of gate math can be tuned.
-- Difficulty ramps via: larger required thresholds, more deceptive gate rows (attractive-looking lane has the worse value), faster run speed.
+- Level content is plain data (`scripts/level_one_definition.gd`): an
+  ordered list of gate-row / toll-wall / pickup / enemy-wave / horde
+  entries keyed by distance, plus a finish distance. Tuning or extending
+  the level means editing this file, not the controllers.
+- Multi-frame entries (enemy waves, hordes, rival crowds) are
+  "encounters" behind a small lifecycle (`scripts/encounter.gd`); instant
+  entries (gates, toll, pickups) are resolved directly. See `AGENTS.md`
+  for the architecture notes.
+- Difficulty ramps via larger thresholds, more deceptive gate rows, and
+  rising run speed. Design intent, not built: a short multi-level
+  progression (tracked in Issues).
 
 ### Camera / perspective
-- Third-person chase camera behind the player, forced-perspective "road going into the distance" — this is the defining visual signature of the genre and was the main thing that made the reference screenshot look different from sand-walker's top-down framing.
-- **Open question:** implement as true Godot `Node3D` (simple primitive/capsule meshes, real perspective camera) vs. a 2.5D fake-perspective trick in `Node2D` (scale + vertical-position sprites to fake depth, cheaper to build but more limited, e.g. can't bank on turns). True 3D is closer to the reference and Godot 4 handles simple low-poly 3D fine; recommend defaulting to **true 3D** unless there's a reason to stay 2D-only (e.g. wanting to reuse sand-walker's 2D pipeline/team skill).
+- Third-person chase camera, low and close with a tight FOV, so the crowd
+  fills the lower frame and encounters tower ahead — the forced-
+  perspective "road into the distance" signature of the genre.
+- Reacts to events: a transient FOV punch on gate/toll pass, positional
+  shake on a breach or a failed toll. Suppressed outside the `RUNNING`
+  state.
 
 ### Controls
-- Single-axis horizontal drag/swipe (touch) or A/D + mouse-drag (desktop testing). No jump, no attack button, no shoot.
+- Single-axis horizontal steering: `A`/`D` + arrow keys, mouse drag, or
+  touch swipe. Crossing a pixel threshold advances one lane; a large drag
+  advances several, keeping the remainder. No jump, no attack button, no
+  manual shoot.
+
+### Feedback
+- `game_hud.gd` shows the crowd count, a lane indicator, and transient
+  gate/pickup/combat feedback, plus start and end-of-run overlays.
+- `feedback_audio.gd` synthesizes a short distinct tone per event at
+  startup — no audio assets.
+- `vfx.gd` and the encounter visuals provide the combat/gate juice:
+  spark bursts on kills, staggered death pops, muzzle flashes across the
+  crowd's front edge, stretched tracer bullets, a gate scale-punch with a
+  floating `+N` / `−N`, and a "shred line" along a horde under fire.
+
+## Not yet built
+
+Design directions that are described above but not implemented. Anything
+actionable and scheduled is a **GitHub Issue**; the rest is just
+direction:
+
+- `×N` / `÷N` gates; a non-consuming checkpoint wall.
+- A rival-crowd clash as its own level beat (the system exists; no level
+  uses it).
+- Multiple levels + progression; an end-of-level celebration; route and
+  balance simulation tests (these have Issues).
+- Large-number formatting (`12.4K`, `3.1M`) once counts get big enough to
+  need it.
+- Branching track sections.
+- Export presets / packaged builds (see `AGENTS.md`).
+
+## Out of scope
+
+- **No monetization of any kind**, ever — no ads, IAP, or currency hooks,
+  not even inert scaffolding (see `AGENTS.md`).
+- No skins / unlockable crowd variants, no meta-progression currency —
+  there's nothing to spend it on and nothing to sell.
 
 ## Relationship to sand-walker
 
@@ -62,34 +173,24 @@ This is a **separate project from sand-walker**, not a reskin of it — the core
 |---|---|---|
 | Camera | Top-down, fixed player position | Third-person chase, forced-perspective road |
 | Movement | Player fixed near bottom, world scrolls down | Player auto-runs forward continuously |
-| Player power | Bullets/damage vs. enemy HP | Crowd count vs. numeric thresholds |
-| Input | Lane-switch (3 lanes) | Lane-switch (5–7 lanes), same gesture family |
-| Combat | Direct shooting, enemies have HP/hit-stages | Mass-vs-mass attrition (optional, v2+) |
-| Engine setup | Godot 4.7, `Node2D`, 480×854 portrait | Recommend Godot 4.7, `Node3D` (see camera note), portrait |
+| Player power | Bullets/damage vs. enemy HP | Crowd count vs. numeric thresholds; plus auto-fire vs. enemy HP |
+| Input | Lane-switch (3 lanes) | Lane-switch (5 lanes), same gesture family |
+| Combat | Direct shooting, enemies have HP/hit-stages | Crowd auto-fire vs. waves, plus mass-vs-mass attrition vs. hordes |
+| Engine setup | Godot 4.7, `Node2D`, 480×854 portrait | Godot 4.7, `Node3D`, 480×854 portrait |
 
-They share genre-adjacent DNA (portrait mobile arcade, lane-based steering, wave/threshold pacing) but are different games. No code or assets are shared; this is intentionally a separate project directory and will not be folded into sand-walker's git history.
+They share genre-adjacent DNA (portrait mobile arcade, lane-based
+steering, wave/threshold pacing) but are different games. No code or
+assets are shared; this stays a separate project directory and will not
+be folded into sand-walker's git history.
 
-## MVP scope (v1)
+## Resolved decisions
 
-- One straight track, fixed length, hand-authored.
-- 5 lanes.
-- Gate types: `+N`, `−N` only.
-- One obstacle type: toll wall with a single numeric threshold.
-- No rival-crowd battles yet.
-- Placeholder capsule/blob units (no character art) — validate the math/pacing loop before investing in art.
-- Single level, restart-on-fail, no meta-progression/currency yet.
+Former open questions, settled:
 
-## Deferred / v2+
-
-- `×N` / `÷N` gates.
-- Rival crowd battles.
-- Multiple levels + level select.
-- Currency/unlocks (skins for crowd units).
-- Branching track sections (not just straight-line gate rows).
-- Number formatting for large counts (e.g. `12.4K`, `3.1M`) once thresholds get large enough to need it.
-
-## Open questions
-
-1. True 3D vs. faux-2.5D perspective (see Camera section) — affects engine setup from day one.
-2. Endless runner (procedural, score-chasing) vs. level-based (hand-authored, finite, star-rated)? The reference screenshot's `+99` / `600` framing reads as level-based with escalating hand-tuned numbers.
-3. Any monetization intent (ads, IAP)? Not assumed here — the reference screenshot itself is an ad creative ("Überspringen" / skip button visible), not necessarily a product decision to copy.
+1. **True 3D vs. faux-2.5D.** True 3D (`Node3D`, real perspective camera).
+   Built and shipped.
+2. **Endless vs. level-based.** Level-based: hand-authored, finite,
+   restart-on-fail. A short multi-level progression is design intent
+   (tracked in Issues), not an endless/procedural mode.
+3. **Monetization.** None, permanently. This is a personal project with
+   no engagement or revenue goals — see `AGENTS.md`.

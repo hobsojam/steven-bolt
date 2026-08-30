@@ -22,6 +22,11 @@ var _is_mass: bool
 var _last_count: int = -1
 var _shred_seen_count: int = -1
 var _shred_cooldown: float = 0.0
+# For a mass: its starting size (the layout is anchored to this, so
+# survivors never move) and the local z of the current frontmost rendered
+# rank (where fire is landing as the mass carves back).
+var _full_count: int = 1
+var _front_z: float = 0.0
 var _multimesh_instance: MultiMeshInstance3D
 var _bullet_container: Node3D
 
@@ -59,6 +64,7 @@ func _ready() -> void:
 	add_child(_multimesh_instance)
 	_bullet_container = Node3D.new()
 	add_child(_bullet_container)
+	_full_count = maxi(runtime.rival_count, 1)
 
 
 func _process(delta: float) -> void:
@@ -82,16 +88,17 @@ func _emit_shred(count: int, delta: float) -> void:
 	if _shred_cooldown > 0.0:
 		return
 	_shred_cooldown = SHRED_INTERVAL
-	# Front rank sits at local z = 0 (the face turned toward the player),
-	# where fire is landing.
 	var half_width: float = maxf(_front_half_width(count), 0.4)
-	Vfx.spawn_burst(
-		self,
-		Vector3(randf_range(-half_width, half_width), 1.0, 0.0),
-		Vfx.KILL_COLOR,
-		clampi(lost * 3, 8, 26),
-		3.5
-	)
+	# One burst per ~10 units lost (capped), scattered across the frontmost
+	# rendered rank - the line the crowd's fire is actually chewing through.
+	for _b in clampi(lost / 10, 1, 3):
+		Vfx.spawn_burst(
+			self,
+			Vector3(randf_range(-half_width, half_width), 1.0, _front_z),
+			Vfx.KILL_COLOR,
+			clampi(lost * 2, 8, 24),
+			3.5
+		)
 
 
 func _refresh_bullets() -> void:
@@ -117,11 +124,12 @@ func _front_half_width(count: int) -> float:
 
 
 func _rebuild(count: int) -> void:
-	var transforms: Array[Transform3D] = (
-		RunRules.build_enemy_mass_transforms(count)
-		if _is_mass
-		else RunRules.build_multimesh_transforms(count)
-	)
+	var transforms: Array[Transform3D]
+	if _is_mass:
+		transforms = RunRules.enemy_mass_survivor_transforms(_full_count, count)
+		_front_z = transforms[0].origin.z if not transforms.is_empty() else 0.0
+	else:
+		transforms = RunRules.build_multimesh_transforms(count)
 	_multimesh_instance.multimesh.instance_count = transforms.size()
 	if _face_player:
 		# Face the player's crowd (the model's own forward is -Z, matching

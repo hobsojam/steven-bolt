@@ -73,6 +73,8 @@ func _initialize() -> void:
 	_test_enemy_mass_layout_recedes_toward_horizon()
 	_test_enemy_mass_layout_is_deterministic()
 	_test_build_enemy_mass_transforms_matches_layout_count()
+	_test_enemy_mass_survivors_die_from_the_front_rank()
+	_test_enemy_mass_survivors_clamp_to_the_mass_size()
 	_test_apply_shot_damage_reduces_and_clamps_at_zero()
 	_test_apply_shot_damage_is_cooldown_gated()
 	_test_apply_shot_damage_spawns_one_bullet_per_shot()
@@ -643,6 +645,35 @@ func _test_build_enemy_mass_transforms_matches_layout_count() -> void:
 		RunRules.build_enemy_mass_transforms(180).size(),
 		RunRules.enemy_mass_layout(180).size(),
 		"enemy mass transforms match enemy_mass_layout's instance count"
+	)
+
+
+func _test_enemy_mass_survivors_die_from_the_front_rank() -> void:
+	var full_count: int = 120
+	var alive: int = 80
+	var full: Array[Transform3D] = RunRules.build_enemy_mass_transforms(full_count)
+	var survivors: Array[Transform3D] = RunRules.enemy_mass_survivor_transforms(full_count, alive)
+	_assert_eq(survivors.size(), alive, "survivor count matches the alive count")
+	_assert_true(
+		survivors[0].origin == full[full.size() - alive].origin,
+		"survivors are the tail of the full layout and keep their original positions"
+	)
+	_assert_true(
+		survivors[0].origin.z < full[0].origin.z,
+		"the rendered front edge has receded away from the player as the front rank died"
+	)
+
+
+func _test_enemy_mass_survivors_clamp_to_the_mass_size() -> void:
+	_assert_eq(
+		RunRules.enemy_mass_survivor_transforms(50, 999).size(),
+		RunRules.enemy_mass_layout(50).size(),
+		"asking for more survivors than the mass holds returns the whole mass"
+	)
+	_assert_eq(
+		RunRules.enemy_mass_survivor_transforms(50, 0).size(),
+		0,
+		"a wiped-out mass renders nothing"
 	)
 
 

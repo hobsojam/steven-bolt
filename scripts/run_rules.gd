@@ -139,6 +139,20 @@ static func build_enemy_mass_transforms(count: int) -> Array[Transform3D]:
 	return transforms
 
 
+static func enemy_mass_survivor_transforms(
+	full_count: int, alive_count: int
+) -> Array[Transform3D]:
+	# The mass is laid out once at its full size (front rank first). As it
+	# loses units they die from the front rank - the one facing the crowd's
+	# fire - inward, so the survivors are the *tail* of that layout and keep
+	# their original positions. Rendering the tail (rather than truncating
+	# the head) is what makes fire visibly carve the mass back instead of
+	# thinning it from the hidden far side.
+	var all: Array[Transform3D] = build_enemy_mass_transforms(full_count)
+	var shown: int = clampi(alive_count, 0, all.size())
+	return all.slice(all.size() - shown)
+
+
 static func _index_hash(index: int, salt: float) -> float:
 	# Cheap deterministic hash -> [0, 1). Not statistically great, but stable
 	# and dependency-free, which is all the mass jitter needs.

@@ -12,6 +12,7 @@ const RivalCrowdEncounter := preload("res://scripts/rival_crowd_encounter.gd")
 const HordeEncounter := preload("res://scripts/horde_encounter.gd")
 const MainScene := preload("res://scenes/main.tscn")
 const EnvironmentZones := preload("res://scripts/environment_zones.gd")
+const Music := preload("res://scripts/music.gd")
 
 var _failures: int = 0
 
@@ -86,6 +87,7 @@ func _initialize() -> void:
 	_test_horde_encounter_shoots_before_contact_then_completes()
 	_test_horde_encounter_contact_phase_charges_breach()
 	_test_rival_crowd_encounter_engages_only_after_its_distance()
+	_test_music_loops_are_full_length_and_never_clip()
 
 	if _failures == 0:
 		print("All tests passed")
@@ -840,6 +842,20 @@ func _feedback_amount(result: Dictionary, kind: StringName) -> int:
 		if event[0] == kind:
 			return event[1]
 	return -1
+
+
+func _test_music_loops_are_full_length_and_never_clip() -> void:
+	for combat in [false, true]:
+		var samples: PackedFloat32Array = Music.render_loop(combat)
+		_assert_eq(
+			samples.size(), Music.LOOP_SAMPLES, "the baked music loop is exactly LOOP_SAMPLES long"
+		)
+		var peak: float = 0.0
+		for value in samples:
+			peak = maxf(peak, absf(value))
+		_assert_true(
+			peak > 0.5 and peak <= 1.0, "the baked music loop is audible and stays within [-1, 1]"
+		)
 
 
 func _assert_true(condition: bool, message: String) -> void:

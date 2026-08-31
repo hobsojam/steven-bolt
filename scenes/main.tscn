@@ -1,4 +1,4 @@
-[gd_scene load_steps=19 format=3 uid="uid://c0n0scaffold01"]
+[gd_scene load_steps=20 format=3 uid="uid://c0n0scaffold01"]
 
 [ext_resource type="Script" path="res://scripts/run_controller.gd" id="1_run"]
 [ext_resource type="Script" path="res://scripts/crowd_controller.gd" id="2_crowd"]
@@ -10,6 +10,7 @@
 [ext_resource type="Script" path="res://scripts/feedback_audio.gd" id="8_audio"]
 [ext_resource type="Script" path="res://scripts/environment_controller.gd" id="9_env"]
 [ext_resource type="Script" path="res://scripts/crowd_muzzle_flash.gd" id="10_muzzle"]
+[ext_resource type="Script" path="res://scripts/music.gd" id="11_music"]
 
 [sub_resource type="PlaneMesh" id="PlaneMesh_track"]
 size = Vector2(8, 180)
@@ -109,6 +110,9 @@ rotation_degrees = Vector3(-48, 28, 0)
 light_color = Color(1, 0.972549, 0.917647, 1)
 light_energy = 1.05
 shadow_enabled = true
+
+[node name="Music" type="Node" parent="."]
+script = ExtResource("11_music")
 
 [node name="Hud" type="CanvasLayer" parent="."]
 theme = ExtResource("7_theme")

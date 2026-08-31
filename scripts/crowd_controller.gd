@@ -85,15 +85,12 @@ func move_lane(direction: int) -> void:
 func _play_lane_lean(direction: int) -> void:
 	if _lane_kick_tween and _lane_kick_tween.is_valid():
 		_lane_kick_tween.kill()
-	# A brief trailing offset + bank that eases straight back to neutral.
-	# No overshoot (TRANS_QUART, not TRANS_BACK) - it should read as the
-	# crowd leaning into the move, not springing.
-	_crowd_visual.position.x = -direction * 0.12
-	_crowd_visual.rotation.z = -direction * 0.05
-	_lane_kick_tween = create_tween().set_parallel(true)
-	_lane_kick_tween.set_trans(Tween.TRANS_QUART).set_ease(Tween.EASE_OUT)
-	_lane_kick_tween.tween_property(_crowd_visual, "position:x", 0.0, 0.16)
-	_lane_kick_tween.tween_property(_crowd_visual, "rotation:z", 0.0, 0.16)
+	# Only a faint bank into the move that eases straight back to level -
+	# no sideways lurch, no overshoot.
+	_crowd_visual.rotation.z = -direction * 0.03
+	_lane_kick_tween = create_tween()
+	_lane_kick_tween.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	_lane_kick_tween.tween_property(_crowd_visual, "rotation:z", 0.0, 0.12)
 
 
 func apply_gate(op: String, value: int) -> void:

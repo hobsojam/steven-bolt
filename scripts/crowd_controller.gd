@@ -76,21 +76,24 @@ func move_lane(direction: int) -> void:
 	current_lane = next_lane
 	# The root position is authoritative for both visuals and gameplay. Snap it
 	# immediately so a gate can never resolve against a lane the crowd has not
-	# visibly reached, then animate only a small within-lane kick for feel.
+	# visibly reached, then settle a small within-lane lean for feel.
 	position.x = RunRules.lane_x(current_lane)
-	_play_lane_kick(move_direction)
+	_play_lane_lean(move_direction)
 	lane_changed.emit(current_lane, move_direction)
 
 
-func _play_lane_kick(direction: int) -> void:
+func _play_lane_lean(direction: int) -> void:
 	if _lane_kick_tween and _lane_kick_tween.is_valid():
 		_lane_kick_tween.kill()
-	_crowd_visual.position.x = -direction * 0.22
-	_crowd_visual.rotation.z = -direction * 0.1
+	# A brief trailing offset + bank that eases straight back to neutral.
+	# No overshoot (TRANS_QUART, not TRANS_BACK) - it should read as the
+	# crowd leaning into the move, not springing.
+	_crowd_visual.position.x = -direction * 0.12
+	_crowd_visual.rotation.z = -direction * 0.05
 	_lane_kick_tween = create_tween().set_parallel(true)
-	_lane_kick_tween.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	_lane_kick_tween.tween_property(_crowd_visual, "position:x", 0.0, 0.12)
-	_lane_kick_tween.tween_property(_crowd_visual, "rotation:z", 0.0, 0.12)
+	_lane_kick_tween.set_trans(Tween.TRANS_QUART).set_ease(Tween.EASE_OUT)
+	_lane_kick_tween.tween_property(_crowd_visual, "position:x", 0.0, 0.16)
+	_lane_kick_tween.tween_property(_crowd_visual, "rotation:z", 0.0, 0.16)
 
 
 func apply_gate(op: String, value: int) -> void:

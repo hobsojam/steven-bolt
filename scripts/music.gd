@@ -20,8 +20,8 @@ const BARS := 4
 const BEATS_PER_BAR := 4
 const LOOP_SAMPLES := int(SAMPLE_RATE * BARS * BEATS_PER_BAR * 60.0 / BPM)
 
-const BED_VOLUME_DB := -16.0
-const COMBAT_MAX_VOLUME_DB := -18.0
+const BED_VOLUME_DB := -12.0
+const COMBAT_MAX_VOLUME_DB := -14.0
 const SILENT_DB := -60.0
 const FADE_IN := 1.3
 const FADE_OUT := 0.9

@@ -81,10 +81,10 @@ func _on_lane_changed(lane: int, _direction: int) -> void:
 	_audio.play_feedback(&"lane")
 	if _lane_tween and _lane_tween.is_valid():
 		_lane_tween.kill()
-	_lane_panel.scale = Vector2(1.05, 1.05)
+	_lane_panel.scale = Vector2(1.03, 1.03)
 	_lane_tween = create_tween()
-	_lane_tween.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	_lane_tween.tween_property(_lane_panel, "scale", Vector2.ONE, 0.12)
+	_lane_tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	_lane_tween.tween_property(_lane_panel, "scale", Vector2.ONE, 0.1)
 
 
 func _update_lane_indicator(selected_lane: int) -> void:
